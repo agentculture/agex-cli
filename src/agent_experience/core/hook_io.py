@@ -38,10 +38,12 @@ def _acquire_lock_with_retry(fh) -> None:
             time.sleep(_LOCK_BASE_SLEEP_SEC * attempt + random.uniform(0, _LOCK_BASE_SLEEP_SEC))
     # Unreachable by construction — the loop always records an exception before
     # breaking — but an explicit guard keeps the re-raise safe under `python -O`
-    # (which strips `assert`) and satisfies type narrowing.
+    # (which strips `assert`) and satisfies type narrowing. The re-raise is
+    # outside any `except` block, so no implicit exception chain needs
+    # suppressing and a bare `raise last_exc` (not `from`) is the idiomatic form.
     if last_exc is None:  # pragma: no cover
         raise RuntimeError("_acquire_lock_with_retry: no exception recorded")
-    raise last_exc from last_exc
+    raise last_exc
 
 
 def _validate_stream(stream: str) -> None:

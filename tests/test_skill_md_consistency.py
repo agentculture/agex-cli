@@ -5,15 +5,17 @@ package and assert that frontmatter is valid.  They also verify that the
 five top-level command SKILL.md files exist so that future renames or
 deletions don't silently break the contract.
 
-Note on resource loading: `as_file` is used (not `Path(str(files(...)))`)
-because the Traversable pattern is the only approach that is safe across
-zipapp/PEX and editable installs.  In CI and dev we install in editable
-mode, so the returned Path objects remain valid after the `with` block
-exits — but we capture them as `Path(p)` copies just to be explicit.
+Zipapp/PEX safety: `as_file()` may extract resources to a temporary
+directory that gets cleaned up when the context exits.  So we never
+parametrize over `Path` objects captured inside an `as_file()` context
+— we parametrize over relative-path strings (always safe) and
+re-enter `as_file()` inside each test to materialize a real Path just
+long enough to read the file.  This works identically on editable
+filesystem installs (where `as_file` is a no-op) and on zipped wheel
+installs (where it extracts on demand).
 """
 
 from importlib.resources import as_file, files
-from pathlib import Path
 
 import pytest
 
@@ -22,11 +24,15 @@ from agent_experience.core.skill_loader import load_skill
 _VALID_TYPES = frozenset({"command", "lesson"})
 
 
-def _all_skill_md_paths() -> list[Path]:
-    # Works because our package is installed in editable mode (hatch
-    # force-include keeps SKILL.md on the filesystem, not inside a zip loader).
+def _all_skill_md_relpaths() -> list[str]:
+    """Return relative paths (strings) of every SKILL.md under the commands
+    package. Strings survive across `as_file()` boundaries; Path objects
+    captured inside the context do not."""
     with as_file(files("agent_experience.commands")) as root:
-        return sorted(Path(p) for p in root.glob("**/SKILL.md"))
+        return sorted(
+            "/".join(p.relative_to(root).parts)
+            for p in root.glob("**/SKILL.md")
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -37,10 +43,10 @@ def _all_skill_md_paths() -> list[Path]:
 
 def test_meta_test_discovers_all_known_skills() -> None:
     """Verify that at least 9 SKILL.md files are found (5 commands + 4 lessons)."""
-    paths = _all_skill_md_paths()
-    assert len(paths) >= 9, (
+    relpaths = _all_skill_md_relpaths()
+    assert len(relpaths) >= 9, (
         f"Expected >= 9 SKILL.md files under agent_experience.commands, "
-        f"found {len(paths)}: {[str(p) for p in paths]}"
+        f"found {len(relpaths)}: {relpaths}"
     )
 
 
@@ -48,18 +54,16 @@ def test_meta_test_discovers_all_known_skills() -> None:
 # Parametrized frontmatter tests — one test case per SKILL.md file.
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize(
-    "skill_path",
-    _all_skill_md_paths(),
-    ids=lambda p: "/".join(p.parts[p.parts.index("commands"):]),
-)
-def test_skill_md_has_valid_frontmatter(skill_path: Path) -> None:
+@pytest.mark.parametrize("relpath", _all_skill_md_relpaths(), ids=str)
+def test_skill_md_has_valid_frontmatter(relpath: str) -> None:
     """Each SKILL.md must parse without error and have name, description, and type."""
-    skill = load_skill(skill_path)
-    assert skill.name, f"{skill_path}: 'name' frontmatter field is empty"
-    assert skill.description, f"{skill_path}: 'description' frontmatter field is empty"
+    with as_file(files("agent_experience.commands")) as commands_root:
+        skill_path = commands_root / relpath
+        skill = load_skill(skill_path)
+    assert skill.name, f"{relpath}: 'name' frontmatter field is empty"
+    assert skill.description, f"{relpath}: 'description' frontmatter field is empty"
     assert skill.type in _VALID_TYPES, (
-        f"{skill_path}: 'type' value {skill.type!r} is not one of {sorted(_VALID_TYPES)}"
+        f"{relpath}: 'type' value {skill.type!r} is not one of {sorted(_VALID_TYPES)}"
     )
 
 

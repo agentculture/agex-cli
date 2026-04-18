@@ -47,7 +47,12 @@ def test_version_flag_still_works(tmp_path):
 
 
 def test_zero_args_shows_help(tmp_path):
-    """Invoking agex with no arguments triggers the Typer no_args_is_help path."""
+    """Invoking agex with no arguments triggers the Typer no_args_is_help path.
+
+    Typer (via Click) exits with code 2 on no-args-help — the standard Unix
+    convention for "usage error: missing required argument". We assert the
+    exact code so a future regression that silently flips this to 0 is caught.
+    """
     result = subprocess.run(
         [sys.executable, "-m", "agent_experience"],
         capture_output=True,
@@ -55,5 +60,5 @@ def test_zero_args_shows_help(tmp_path):
         cwd=tmp_path,
     )
     combined = result.stdout + result.stderr
-    assert result.returncode != 0
+    assert result.returncode == 2
     assert "Usage:" in combined
