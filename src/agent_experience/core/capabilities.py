@@ -6,7 +6,7 @@ import yaml
 
 from agent_experience.core.backend import Backend
 
-ISSUE_URL = "https://github.com/OriNachum/agent-experience/issues"
+ISSUE_URL = "https://github.com/OriNachum/agex/issues"
 
 
 @dataclass

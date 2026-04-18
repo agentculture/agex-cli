@@ -1,13 +1,13 @@
-# agent-experience
+# agex
 
-Agent-operated developer-experience CLI. Non-agentic, deterministic, markdown-first.
+Agent-operated developer-experience CLI. Non-agentic, deterministic, markdown-first. Distributed on PyPI as `agex-cli`; installs the `agex` command.
 
 ## Install
 
 ```bash
-uv tool install agent-experience
+uv tool install agex-cli
 # or
-pipx install agent-experience
+pipx install agex-cli
 ```
 
 ## Quick start
@@ -20,7 +20,7 @@ agex learn --agent claude-code
 
 ## Docs
 
-[agent-experience.culture.dev](https://agent-experience.culture.dev) (coming soon).
+[agex.culture.dev](https://agex.culture.dev) (coming soon).
 
 Spec: `docs/superpowers/specs/2026-04-18-agex-design.md`.
 
