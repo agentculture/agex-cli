@@ -33,3 +33,25 @@ def test_learn_rejects_path_traversal():
         result = runner.invoke(app, ["learn", bad, "--agent", "claude-code"])
         assert result.exit_code == 2, f"expected exit 2 for topic={bad!r}"
         assert "unknown topic" in result.stderr.lower()
+
+
+def test_learn_menu_lists_all_v01_topics():
+    runner = CliRunner()
+    result = runner.invoke(app, ["learn", "--agent", "claude-code"])
+    for topic in ("introspect", "visualize", "gamify", "levelup"):
+        assert topic in result.stdout
+
+
+def test_learn_visualize_emits_lesson():
+    runner = CliRunner()
+    result = runner.invoke(app, ["learn", "visualize", "--agent", "claude-code"])
+    assert result.exit_code == 0
+    assert "visualize" in result.stdout.lower()
+
+
+def test_learn_gamify_includes_levelup_template():
+    runner = CliRunner()
+    result = runner.invoke(app, ["learn", "gamify", "--agent", "claude-code"])
+    assert result.exit_code == 0
+    assert "gamify" in result.stdout
+    assert "levelup" in result.stdout
