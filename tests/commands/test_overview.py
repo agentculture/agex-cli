@@ -33,8 +33,11 @@ def test_overview_empty_project(tmp_path, monkeypatch):
     runner = CliRunner()
     result = runner.invoke(app, ["overview", "--agent", "claude-code"])
     assert result.exit_code == 0
-    assert "_none_" in result.stdout
+    assert result.stdout.count("_none_") == 3
     assert "no CLAUDE.md" in result.stdout
+    assert "## Skills (0)" in result.stdout
+    assert "## Hooks (0)" in result.stdout
+    assert "## MCP servers (0)" in result.stdout
 
 
 def test_overview_missing_agent_flag_errors(tmp_path, monkeypatch):

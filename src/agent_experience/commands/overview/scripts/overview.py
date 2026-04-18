@@ -18,12 +18,17 @@ def _assets_root() -> Traversable:
 
 
 def run(backend: Backend) -> tuple[str, int, str]:
+    """Return (stdout, exit_code, stderr)."""
     ensure_init()
     project_dir = Path.cwd()
 
     if backend in _PROBES:
         probe_result = _PROBES[backend](project_dir)
     else:
+        # Phase 8 will add probes for codex/copilot/acp. Until then, unknown
+        # backends render as an empty snapshot (spec invariant 5: unsupported
+        # is success). When Phase 8 lands, route through capabilities.py to
+        # emit the unsupported-notice markdown instead.
         probe_result = ProbeResult()
 
     template_text = _assets_root().joinpath("sections.md.j2").read_text(encoding="utf-8")
