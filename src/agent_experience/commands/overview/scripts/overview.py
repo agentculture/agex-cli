@@ -2,7 +2,10 @@ from importlib.resources import files
 from importlib.resources.abc import Traversable
 from pathlib import Path
 
-from agent_experience.backends.claude_code.probe import ProbeResult, probe as claude_code_probe
+from agent_experience.backends.acp.probe import probe as acp_probe
+from agent_experience.backends.claude_code.probe import probe as claude_code_probe
+from agent_experience.backends.codex.probe import probe as codex_probe
+from agent_experience.backends.copilot.probe import probe as copilot_probe
 from agent_experience.core.backend import Backend
 from agent_experience.core.paths import ensure_init
 from agent_experience.core.render import render_string
@@ -10,6 +13,9 @@ from agent_experience.core.render import render_string
 
 _PROBES = {
     Backend.CLAUDE_CODE: claude_code_probe,
+    Backend.CODEX: codex_probe,
+    Backend.COPILOT: copilot_probe,
+    Backend.ACP: acp_probe,
 }
 
 
@@ -25,14 +31,7 @@ def run(backend: Backend) -> tuple[str, int, str]:
     ensure_init()
     project_dir = Path.cwd()
 
-    if backend in _PROBES:
-        probe_result = _PROBES[backend](project_dir)
-    else:
-        # Phase 8 will add probes for codex/copilot/acp. Until then, unknown
-        # backends render as an empty snapshot (spec invariant 5: unsupported
-        # is success). When Phase 8 lands, route through capabilities.py to
-        # emit the unsupported-notice markdown instead.
-        probe_result = ProbeResult()
+    probe_result = _PROBES[backend](project_dir)
 
     template_text = _assets_root().joinpath("sections.md.j2").read_text(encoding="utf-8")
     out = render_string(

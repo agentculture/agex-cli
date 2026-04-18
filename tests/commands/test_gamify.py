@@ -140,3 +140,13 @@ def test_gamify_install_does_not_reformat_when_nothing_new(tmp_path, monkeypatch
     result = runner.invoke(app, ["gamify", "--agent", "claude-code"])
     assert result.exit_code == 0
     assert (claude_dir / "hooks.json").read_text(encoding="utf-8") == original
+
+
+def test_gamify_codex_emits_unsupported_notice(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(app, ["gamify", "--agent", "codex"])
+    assert result.exit_code == 0
+    assert "not supported on codex" in result.stdout.lower()
+    assert "github.com" in result.stdout
+    assert not (tmp_path / ".claude").exists()

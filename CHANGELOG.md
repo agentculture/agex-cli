@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-04-19
+
+### Added
+- Minimal **stub probes** for the three remaining v0.1 backends:
+  - `codex` — records the `AGENTS.md` path in
+    `ProbeResult.claude_md` if present (field name reused pending a
+    future `project_memory` rename); the probe does not read the
+    file's contents. Further discovery deferred.
+  - `copilot` — empty `ProbeResult()`; full discovery tracked as an
+    open issue.
+  - `acp` — empty `ProbeResult()`; full discovery tracked as an open
+    issue.
+- **Capability matrix data** under
+  `src/agent_experience/backends/capabilities/` — one YAML per backend
+  (`claude-code.yaml`, `codex.yaml`, `copilot.yaml`, `acp.yaml`)
+  keyed by the four v0.1 capability facets (`hooks`, `mcp`, `skills`,
+  `agents`) plus a `*_alternative` free-text field for unsupported
+  ones. These YAMLs are loadable by the existing
+  `core/capabilities.py::CapabilityMatrix.load(...)` API; callers that
+  wire up capability-based routing (e.g., `learn.py`) land in a later
+  phase.
+- **Backend-specific overview YAMLs** for `codex`, `copilot`, `acp`
+  under `commands/overview/assets/backends/` — mirror the `claude-
+  code.yaml` shape so `agex overview --agent <backend>` renders a
+  consistent snapshot across all four backends.
+
+### Changed
+- `commands/overview/scripts/overview.py` registers all four probes in
+  `_PROBES`; the interim `if backend in _PROBES / else empty
+  ProbeResult` fallback from Phase 4 is removed (every backend now has
+  a probe, so the dead branch + stale "Phase 8 will..." comment are
+  gone). `run(backend)` is now a direct dict lookup.
+
+### Tests
+- `tests/backends/test_stub_probes.py` — 4 new smoke tests exercising
+  the three stub probes (codex empty + codex AGENTS.md + copilot
+  empty + acp empty).
+- `tests/commands/test_gamify.py` adds one regression test pinning
+  that `agex gamify --agent codex` returns exit 0 with an
+  "unsupported"-notice in stdout and does **not** create `.claude/`
+  on disk (spec invariant #5: unsupported is success, no side
+  effects).
+- 66 tests passing (was 61 on 0.5.0).
+
 ## [0.5.0] — 2026-04-19
 
 ### Added

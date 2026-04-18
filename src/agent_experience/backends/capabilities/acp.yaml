@@ -1,0 +1,7 @@
+hooks: false
+hooks_alternative: |
+  ACP-speaking agents (KiroCLI, OpenCode) do not currently expose hooks.
+  Track usage via the ACP transport layer or a shell wrapper.
+mcp: true
+skills: false
+agents: false
