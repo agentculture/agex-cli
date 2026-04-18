@@ -4,6 +4,7 @@ import typer
 
 from agent_experience import __version__
 from agent_experience.commands.explain.scripts import explain as explain_script
+from agent_experience.commands.learn.scripts import learn as learn_script
 from agent_experience.commands.overview.scripts import overview as overview_script
 from agent_experience.core.backend import parse_backend
 
@@ -46,6 +47,28 @@ def explain(topic: str = typer.Argument(..., help="Topic to explain.")) -> None:
 
 def _agent_option() -> Any:
     return typer.Option(..., "--agent", help="Backend: claude-code, codex, copilot, or acp.")
+
+
+@app.command("learn")
+def learn(
+    topic: Optional[str] = typer.Argument(None, help="Lesson topic (omit for menu)."),
+    agent: str = _agent_option(),
+) -> None:
+    try:
+        backend = parse_backend(agent)
+    except ValueError as e:
+        typer.echo(f"agex: error: {e}", err=True)
+        raise typer.Exit(code=2)
+    if topic is None:
+        stdout, exit_code, stderr = learn_script.run_menu(backend)
+    else:
+        stdout, exit_code, stderr = learn_script.run_topic(topic, backend)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
 
 
 @app.command("overview")
