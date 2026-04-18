@@ -1,0 +1,17 @@
+# Hook events — {{ backend }}
+
+**Source:** `{{ source }}`
+
+{% for stream in streams %}
+## `{{ stream.name }}` ({{ stream.events|length }})
+
+{% if stream.events %}
+| ts | event | details |
+|---|---|---|
+{%- for e in stream.events %}
+| {{ e.ts }} | {{ stream.name }} | {{ e.details }} |
+{%- endfor %}
+{% else %}
+_no events_
+{% endif %}
+{% endfor %}

@@ -4,6 +4,8 @@ import typer
 
 from agent_experience import __version__
 from agent_experience.commands.explain.scripts import explain as explain_script
+from agent_experience.commands.hook.scripts import read as hook_read_script
+from agent_experience.commands.hook.scripts import write as hook_write_script
 from agent_experience.commands.learn.scripts import learn as learn_script
 from agent_experience.commands.overview.scripts import overview as overview_script
 from agent_experience.core.backend import parse_backend
@@ -47,6 +49,39 @@ def explain(topic: str = typer.Argument(..., help="Topic to explain.")) -> None:
 
 def _agent_option() -> Any:
     return typer.Option(..., "--agent", help="Backend: claude-code, codex, copilot, or acp.")
+
+
+hook_app = typer.Typer(help="Write and read agex tracking events.", no_args_is_help=True)
+app.add_typer(hook_app, name="hook")
+
+
+@hook_app.command("write")
+def hook_write(
+    event: str = typer.Argument(..., help="Event name (e.g., post-tool-use)."),
+    args: list[str] = typer.Argument(None, help="Additional key=value pairs."),
+) -> None:
+    args = args or []
+    _, exit_code, stderr = hook_write_script.run(event, args)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@hook_app.command("read")
+def hook_read(agent: str = _agent_option()) -> None:
+    try:
+        backend = parse_backend(agent)
+    except ValueError as e:
+        typer.echo(f"agex: error: {e}", err=True)
+        raise typer.Exit(code=2)
+    stdout, exit_code, stderr = hook_read_script.run(backend)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
 
 
 @app.command("learn")
