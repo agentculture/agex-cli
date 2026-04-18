@@ -10,7 +10,7 @@
 
 `agex` sits in between. It is the *developer experience for agents* — the things an autonomous agent needs to know and do to work well inside its own runtime (Claude Code, Codex, GitHub Copilot CLI, ACP-speaking agents like KiroCLI and OpenCode). Where `claude-code-guide` ships pre-authored skills a human invokes, `agex` ships **primitives** that agents invoke from their shell tool; any user-facing skills are authored by the agent itself, in its own native format, ensuring 100% backend fit and preserving user control over the agent's skill set.
 
-PyPI distribution name: `agent-experience`. CLI entry point: `agex`. Both already reserved on PyPI and TestPyPI.
+PyPI distribution name: `agex-cli`. CLI entry point: `agex`. Both already reserved on PyPI and TestPyPI.
 
 ## Design invariants
 
@@ -236,7 +236,7 @@ Agents consume markdown; stack traces are a bad UX. Every error emits markdown o
 | Missing/invalid `--agent` | 2 | Markdown listing valid backends + why `--agent` is required | `agex: error: --agent required (one of: claude-code, codex, copilot, acp)` |
 | Unknown command | 2 | Same content as `agex explain agex` (self-describing page) | `agex: error: unknown command '<foo>'` |
 | Unknown `learn` topic | 2 | Topic menu (same as `agex learn --agent X` with no topic) | `agex: error: unknown topic '<foo>'` |
-| Unsupported capability | 0 | Markdown explaining what's unsupported + "Want this supported? Open an issue: `https://github.com/OriNachum/agent-experience/issues`" | (none) |
+| Unsupported capability | 0 | Markdown explaining what's unsupported + "Want this supported? Open an issue: `https://github.com/OriNachum/agex/issues`" | (none) |
 | Backend probe failure on one file | 0 | Rendered output with `> ⚠️ could not parse X — skipped` inline | (none) |
 | `.agex/` init failure | 1 | Markdown explaining what failed and how to recover | `agex: error: could not create .agex/ in <cwd>: <reason>` |
 | Internal bug | 1 | Markdown apology + how to file an issue, with traceback fenced | `agex: internal error` |
@@ -289,7 +289,7 @@ No network, no LLM, no real hook executions.
 ## Repo layout
 
 ```
-agent-experience/
+agex/
   src/agent_experience/
     cli.py
     core/
@@ -361,7 +361,7 @@ agent-experience/
     publish.yml
     docs.yml
     skill-md-sync.yml
-  pyproject.toml                    # dist: agent-experience; script: agex
+  pyproject.toml                    # dist: agex-cli; script: agex
   CHANGELOG.md
   CLAUDE.md
   CONTRIBUTING.md
@@ -378,7 +378,7 @@ agent-experience/
 - **CI:** GitHub Actions. Matrix on Linux/macOS/Windows and Python 3.10–3.13.
 - **Publishing:** TestPyPI on every merged PR; PyPI on tagged release. Both names already reserved.
 
-## Docs site (`agent-experience.culture.dev`)
+## Docs site (`agex.culture.dev`)
 
 Jekyll site deployed via Cloudflare Pages. Styled to match `../culture` (cream/dark palette, `_sass/` and `_includes/` patterns lifted). Layout:
 
@@ -430,7 +430,7 @@ Directory-level symlinks are fragile on Windows. The Windows CI matrix skips `te
 
 ## Open issues (tracked on GitHub at repo creation)
 
-The following are deliberately out of scope for v0.1 but will be filed as issues on `https://github.com/OriNachum/agent-experience/issues`:
+The following are deliberately out of scope for v0.1 but will be filed as issues on `https://github.com/OriNachum/agex/issues`:
 
 1. **Codex tester workspace** — `tester-agents/codex/` with `AGENTS.md` persona + `culture.yaml`. Codex's native skill-discovery format (if any) to be confirmed during implementation.
 2. **GitHub Copilot CLI tester workspace** — `tester-agents/copilot/` with Copilot-native instruction file + `culture.yaml`.
