@@ -1,6 +1,4 @@
 import json
-from datetime import datetime, timezone
-from pathlib import Path
 
 from typer.testing import CliRunner
 
@@ -83,6 +81,62 @@ def test_gamify_install_refuses_to_overwrite_corrupt_hooks_file(tmp_path, monkey
     runner = CliRunner()
     result = runner.invoke(app, ["gamify", "--agent", "claude-code"])
     assert result.exit_code == 2
-    assert "hooks.json" in result.output
+    assert "hooks.json" in result.stderr
+    assert result.stdout == ""
     # File must be untouched.
     assert corrupt.read_text(encoding="utf-8") == "not json"
+
+
+def test_gamify_install_refuses_hooks_file_with_wrong_shape(tmp_path, monkeypatch):
+    # Valid JSON but shape is `list` at the top level — should refuse, not crash.
+    monkeypatch.chdir(tmp_path)
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    wrong_shape = claude_dir / "hooks.json"
+    original = json.dumps([{"id": "user:oops", "hook": {}}])
+    wrong_shape.write_text(original, encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(app, ["gamify", "--agent", "claude-code"])
+    assert result.exit_code == 2
+    assert "hooks.json" in result.stderr
+    assert wrong_shape.read_text(encoding="utf-8") == original
+
+
+def test_gamify_uninstall_with_missing_hooks_file_clears_config(tmp_path, monkeypatch):
+    # User already deleted .claude/hooks.json but config still records the
+    # install. Uninstall must clear the config record WITHOUT recreating the file.
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    runner.invoke(app, ["gamify", "--agent", "claude-code"])
+    (tmp_path / ".claude" / "hooks.json").unlink()
+    result = runner.invoke(app, ["gamify", "--uninstall", "--agent", "claude-code"])
+    assert result.exit_code == 0
+    assert not (tmp_path / ".claude" / "hooks.json").exists()
+    cfg = load_config()
+    assert "gamify" not in cfg.installed
+
+
+def test_gamify_install_does_not_reformat_when_nothing_new(tmp_path, monkeypatch):
+    # Seed hooks.json with all agex fragments already present but a non-standard
+    # indentation (4 spaces instead of our 2). Re-running install should be a
+    # true no-op on the file — the user's formatting choice is respected.
+    monkeypatch.chdir(tmp_path)
+    claude_dir = tmp_path / ".claude"
+    claude_dir.mkdir()
+    seeded = {
+        "PostToolUse": [
+            {"id": "agex:post-tool-use", "hook": {"type": "command", "command": "agex hook write post-tool-use tool=\"$CLAUDE_TOOL_NAME\""}},
+        ],
+        "UserPromptSubmit": [
+            {"id": "agex:user-prompt", "hook": {"type": "command", "command": "agex hook write user-prompt"}},
+        ],
+        "Stop": [
+            {"id": "agex:stop", "hook": {"type": "command", "command": "agex hook write stop"}},
+        ],
+    }
+    original = json.dumps(seeded, indent=4) + "\n"
+    (claude_dir / "hooks.json").write_text(original, encoding="utf-8")
+    runner = CliRunner()
+    result = runner.invoke(app, ["gamify", "--agent", "claude-code"])
+    assert result.exit_code == 0
+    assert (claude_dir / "hooks.json").read_text(encoding="utf-8") == original

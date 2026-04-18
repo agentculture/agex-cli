@@ -5,7 +5,7 @@
       "event": "PostToolUse",
       "hook": {
         "type": "command",
-        "command": "agex hook write post-tool-use tool=$CLAUDE_TOOL_NAME"
+        "command": "agex hook write post-tool-use tool=\"$CLAUDE_TOOL_NAME\""
       }
     },
     {

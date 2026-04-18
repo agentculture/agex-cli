@@ -6,8 +6,6 @@ type: lesson
 
 # Lesson — set up gamification for {{ backend }}
 
-> **Preview:** This lesson references `agex gamify` and `agex hook write / hook read` — those commands ship in Phase 6 and Phase 7 of v0.1. As of agex 0.3.0 they are not yet wired up, so treat the steps below as a design preview rather than a runnable walkthrough.
-
 Two parts:
 
 ## Part 1 — install the tracking hooks
