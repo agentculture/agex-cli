@@ -4,6 +4,7 @@ import typer
 
 from agent_experience import __version__
 from agent_experience.commands.explain.scripts import explain as explain_script
+from agent_experience.commands.gamify.scripts import install as gamify_script
 from agent_experience.commands.hook.scripts import read as hook_read_script
 from agent_experience.commands.hook.scripts import write as hook_write_script
 from agent_experience.commands.learn.scripts import learn as learn_script
@@ -98,6 +99,28 @@ def learn(
         stdout, exit_code, stderr = learn_script.run_menu(backend)
     else:
         stdout, exit_code, stderr = learn_script.run_topic(topic, backend)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@app.command("gamify")
+def gamify(
+    agent: str = _agent_option(),
+    uninstall: bool = typer.Option(False, "--uninstall", help="Reverse gamify."),
+) -> None:
+    try:
+        backend = parse_backend(agent)
+    except ValueError as e:
+        typer.echo(f"agex: error: {e}", err=True)
+        raise typer.Exit(code=2)
+    if uninstall:
+        stdout, exit_code, stderr = gamify_script.uninstall(backend)
+    else:
+        stdout, exit_code, stderr = gamify_script.install(backend)
     if stdout:
         typer.echo(stdout, nl=False)
     if stderr:
