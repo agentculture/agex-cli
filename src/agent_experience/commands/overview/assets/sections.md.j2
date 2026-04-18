@@ -1,0 +1,59 @@
+# Overview — {{ backend }}
+
+**Project:** `{{ project_dir }}`
+
+{% if probe.warnings %}
+{%- for w in probe.warnings %}
+> ⚠️ {{ w }}
+{%- endfor %}
+
+{% endif %}
+## Project memory
+
+{% if probe.claude_md %}
+- `{{ probe.claude_md.name }}` present at `{{ probe.claude_md }}`
+{% else %}
+- _no CLAUDE.md / AGENTS.md equivalent found_
+{% endif %}
+
+## Skills ({{ probe.skills|length }})
+
+{% if probe.skills %}
+| name | description |
+|---|---|
+{%- for s in probe.skills %}
+| `{{ s.name }}` | {{ s.description }} |
+{%- endfor %}
+{% else %}
+_none_
+{% endif %}
+
+## Hooks ({{ probe.hooks|length }})
+
+{% if probe.hooks %}
+{%- for h in probe.hooks %}
+- `{{ h.event }}` — {{ h.entries|length }} entry(s)
+{%- endfor %}
+{% else %}
+_none_
+{% endif %}
+
+## MCP servers ({{ probe.mcp_servers|length }})
+
+{% if probe.mcp_servers %}
+{%- for m in probe.mcp_servers %}
+- `{{ m.name }}`
+{%- endfor %}
+{% else %}
+_none_
+{% endif %}
+
+## Settings
+
+{% if probe.settings %}
+```json
+{{ probe.settings | tojson(indent=2) }}
+```
+{% else %}
+_no settings file found_
+{% endif %}
