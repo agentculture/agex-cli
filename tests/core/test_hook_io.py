@@ -20,6 +20,20 @@ def test_load_events_missing_stream_returns_empty(tmp_path, monkeypatch):
     assert load_events("never-written") == []
 
 
+def test_append_event_rejects_invalid_stream_name(tmp_path, monkeypatch):
+    import pytest
+
+    monkeypatch.chdir(tmp_path)
+    ensure_init()
+    for bad in ("../evil", "/etc/passwd", "..", "a/b", "UPPER", "_leading"):
+        with pytest.raises(ValueError, match="invalid stream name"):
+            append_event(bad, {"k": "v"})
+        with pytest.raises(ValueError, match="invalid stream name"):
+            load_events(bad)
+    # Ensure no stray files landed in .agex/data/
+    assert list((tmp_path / ".agex" / "data").iterdir()) == []
+
+
 def test_load_events_skips_malformed_lines_with_warning(tmp_path, monkeypatch):
     import pytest
 

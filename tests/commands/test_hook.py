@@ -46,3 +46,14 @@ def test_hook_read_empty_shows_no_events(tmp_path, monkeypatch):
     result = runner.invoke(app, ["hook", "read", "--agent", "claude-code"])
     assert result.exit_code == 0
     assert "_no events_" in result.stdout
+
+
+def test_hook_write_rejects_path_traversal(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    for bad in ("../../etc/passwd", "/etc/passwd", "..", "a/b", "POST-TOOL-USE", "_underscore"):
+        result = runner.invoke(app, ["hook", "write", bad, "k=v"])
+        assert result.exit_code == 2, f"expected exit 2 for event={bad!r}"
+        assert "invalid stream name" in result.stderr.lower()
+        # The bad name must never land on disk.
+        assert not any((tmp_path / ".agex" / "data").rglob(f"*{bad.split('/')[-1]}*"))

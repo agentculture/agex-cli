@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import warnings
 from pathlib import Path
 from typing import Any
@@ -8,8 +9,21 @@ import portalocker
 
 from agent_experience.core.paths import data_dir
 
+# Stream names are joined into `.agex/data/<stream>.json`, so they must be a
+# safe slug to prevent path traversal (e.g., `../../evil`). Same whitelist as
+# `explain <topic>` / `learn <topic>`.
+_STREAM_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+
+
+def _validate_stream(stream: str) -> None:
+    if not _STREAM_RE.match(stream):
+        raise ValueError(
+            f"invalid stream name {stream!r}; must match ^[a-z][a-z0-9-]*$"
+        )
+
 
 def _stream_path(stream: str) -> Path:
+    _validate_stream(stream)
     return data_dir() / f"{stream}.json"
 
 
