@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-04-19
+
+### Added
+- `agex gamify --agent claude-code` — installs Claude Code hook
+  fragments (tagged `agex:post-tool-use`, `agex:user-prompt`,
+  `agex:stop`) into `.claude/hooks.json` so every tool use, prompt,
+  and stop event calls `agex hook write`. Preserves user-authored
+  hooks already in the file. Idempotent: re-running is a byte-
+  identical no-op (the `[installed.gamify].at` timestamp is only
+  rewritten when the fragment set actually changes).
+- `agex gamify --uninstall --agent claude-code` — surgical removal:
+  only entries whose `id` is tracked in `.agex/config.toml`'s
+  `[installed.gamify].hook_fragment_ids` are stripped; user entries
+  survive. Empty event arrays are deleted. The `gamify` record is
+  popped from config.
+- `commands/gamify/` skill-folder (`SKILL.md` doubles as
+  `agex explain gamify`; `assets/hooks/claude-code.json` carries the
+  three shipped fragments).
+- Unsupported-backend path returns a markdown notice + issue-tracker
+  link at exit 0 (spec invariant #5).
+- 58 tests passing (53 from 0.4.0 + 4 plan tests + 1 corrupt-hooks-
+  file guard).
+
+### Safety
+- Malformed `.claude/hooks.json` is NOT silently overwritten — the
+  file is left untouched and `agex gamify` exits 2 with a clear
+  stderr message pointing at the file. This is the first agex
+  command with real side effects on the user's project; the error
+  path was designed to make accidental data loss impossible.
+
 ## [0.4.0] — 2026-04-18
 
 ### Added
