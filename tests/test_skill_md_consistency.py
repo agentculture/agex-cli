@@ -51,7 +51,7 @@ def test_meta_test_discovers_all_known_skills() -> None:
 @pytest.mark.parametrize(
     "skill_path",
     _all_skill_md_paths(),
-    ids=lambda p: str(p.relative_to(p.parents[len(p.parts) - p.parts.index("commands") - 1])),
+    ids=lambda p: "/".join(p.parts[p.parts.index("commands"):]),
 )
 def test_skill_md_has_valid_frontmatter(skill_path: Path) -> None:
     """Each SKILL.md must parse without error and have name, description, and type."""
