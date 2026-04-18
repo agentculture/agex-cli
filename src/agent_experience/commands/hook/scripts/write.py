@@ -10,7 +10,10 @@ def run(event: str, args: list[str]) -> tuple[str, int, str]:
     for arg in args:
         if "=" in arg:
             k, v = arg.split("=", 1)
-            payload[k] = v
+            if k:
+                payload[k] = v
+    # Positional event name is authoritative — it overrides any `event=...`
+    # pair in args so hook scripts can't misattribute events.
     payload["event"] = event
     append_event(event, payload)
     return ("", 0, "")

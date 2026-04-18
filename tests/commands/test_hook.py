@@ -22,6 +22,22 @@ def test_hook_read_renders_table_with_source(tmp_path, monkeypatch):
     assert "post-tool-use" in result.stdout
     assert "Source:" in result.stdout
     assert "Read" in result.stdout or "tool=Read" in result.stdout
+    # Row count: exactly two `| post-tool-use |` rows, one per write
+    assert result.stdout.count("| post-tool-use |") == 2
+
+
+def test_hook_write_drops_empty_key_pairs(tmp_path, monkeypatch):
+    import json as json_mod
+
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    result = runner.invoke(app, ["hook", "write", "post-tool-use", "=orphan", "tool=Read"])
+    assert result.exit_code == 0
+    line = (tmp_path / ".agex" / "data" / "post-tool-use.json").read_text(encoding="utf-8").splitlines()[0]
+    payload = json_mod.loads(line)
+    assert "" not in payload  # empty key dropped
+    assert payload["tool"] == "Read"
+    assert payload["event"] == "post-tool-use"
 
 
 def test_hook_read_empty_shows_no_events(tmp_path, monkeypatch):

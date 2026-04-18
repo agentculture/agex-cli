@@ -1,5 +1,6 @@
 import json
 import os
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -27,13 +28,22 @@ def append_event(stream: str, payload: dict[str, Any]) -> None:
 
 
 def load_events(stream: str) -> list[dict[str, Any]]:
+    # Malformed lines (partial writes, external edits) are skipped with a
+    # warning rather than raised, so `agex hook read` stays a read-only
+    # snapshot even when a `.agex/data/*.json` file gets corrupted.
     path = _stream_path(stream)
     if not path.exists():
         return []
     events: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip():
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            continue
+        try:
             events.append(json.loads(line))
+        except json.JSONDecodeError as e:
+            warnings.warn(
+                f"{path}:{lineno}: skipping malformed JSON line: {e}", stacklevel=2
+            )
     return events
 
 

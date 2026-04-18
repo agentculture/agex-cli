@@ -5,13 +5,13 @@
 {% for stream in streams %}
 ## `{{ stream.name }}` ({{ stream.events|length }})
 
-{% if stream.events %}
+{% if stream.events -%}
 | ts | event | details |
 |---|---|---|
-{%- for e in stream.events %}
+{% for e in stream.events -%}
 | {{ e.ts }} | {{ stream.name }} | {{ e.details }} |
-{%- endfor %}
-{% else %}
+{% endfor %}
+{%- else -%}
 _no events_
-{% endif %}
+{%- endif %}
 {% endfor %}
