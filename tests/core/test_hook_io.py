@@ -2,6 +2,7 @@ import pytest
 from concurrent.futures import ThreadPoolExecutor
 
 import portalocker
+from portalocker.exceptions import AlreadyLocked
 
 from agent_experience.core.hook_io import append_event, load_events, render_table
 from agent_experience.core.paths import ensure_init
@@ -85,8 +86,6 @@ def test_append_event_retries_on_already_locked(tmp_path, monkeypatch):
     """Regression test for issue #12: append_event retries when portalocker
     reports AlreadyLocked (Windows msvcrt EDEADLK), rather than propagating
     on the first transient failure."""
-    from portalocker.exceptions import AlreadyLocked
-
     monkeypatch.chdir(tmp_path)
     ensure_init()
 
@@ -99,7 +98,9 @@ def test_append_event_retries_on_already_locked(tmp_path, monkeypatch):
             raise AlreadyLocked("simulated Windows msvcrt EDEADLK")
         return original_lock(fh, flags)
 
-    # Import the module so we patch the SAME reference append_event uses
+    # Import the module so we patch the SAME reference append_event uses.
+    # `random.uniform` is intentionally NOT patched — the test only asserts
+    # call count and final state, so the jitter value does not matter.
     from agent_experience.core import hook_io
     monkeypatch.setattr(hook_io.portalocker, "lock", flaky_lock)
     # Patch out sleep so the test finishes instantly
@@ -116,11 +117,11 @@ def test_append_event_retries_on_already_locked(tmp_path, monkeypatch):
 def test_append_event_gives_up_after_max_attempts(tmp_path, monkeypatch):
     """If every retry fails, the final AlreadyLocked is propagated (no silent
     data loss)."""
-    from portalocker.exceptions import AlreadyLocked
-
     monkeypatch.chdir(tmp_path)
     ensure_init()
 
+    # `random.uniform` is intentionally NOT patched — see the companion test
+    # for the rationale (only call count and final outcome are asserted).
     from agent_experience.core import hook_io
 
     def always_fail(fh, flags):
