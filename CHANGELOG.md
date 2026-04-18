@@ -11,9 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Minimal **stub probes** for the three remaining v0.1 backends:
-  - `codex` — reads `AGENTS.md` into `ProbeResult.claude_md` if
-    present (field name reused pending a future `project_memory`
-    rename); further discovery deferred.
+  - `codex` — records the `AGENTS.md` path in
+    `ProbeResult.claude_md` if present (field name reused pending a
+    future `project_memory` rename); the probe does not read the
+    file's contents. Further discovery deferred.
   - `copilot` — empty `ProbeResult()`; full discovery tracked as an
     open issue.
   - `acp` — empty `ProbeResult()`; full discovery tracked as an open
