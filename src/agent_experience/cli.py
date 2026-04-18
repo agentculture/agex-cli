@@ -146,6 +146,9 @@ def overview(agent: str = _agent_option()) -> None:
         raise typer.Exit(code=exit_code)
 
 
+# Keep in sync with the @app.command / app.add_typer registrations above.
+# If a new top-level command is added, extend this set so _main_entrypoint
+# stops routing it to the unknown-command fallback page.
 _KNOWN_COMMANDS = {"explain", "overview", "learn", "gamify", "hook"}
 
 

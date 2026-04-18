@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-04-19
+
+### Added
+- **Unknown-command routing** — invoking `agex <unknown>` (e.g.,
+  `agex frobnicate`) now prints a one-line
+  `agex: error: unknown command '<name>'` to stderr, emits the body of
+  `agex explain agex` to stdout (so the agent immediately sees the full
+  command list), and exits with code 2. Previously Typer's default
+  "No such command" message was emitted with no recovery guidance.
+  Implemented via a thin `_main_entrypoint` wrapper in `cli.py` and a
+  new `agent_experience/__main__.py` so `python -m agent_experience`
+  routes through the same handler as the `agex` console script.
+- **SKILL.md consistency meta-test** — `tests/test_skill_md_consistency.py`
+  parametrizes over every `SKILL.md` shipped under the `commands/`
+  package and asserts valid frontmatter (`name`, `description`,
+  `type ∈ {command, lesson}`). A companion guard test
+  (`test_meta_test_discovers_all_known_skills`) fails loudly if the
+  resource-discovery glob returns fewer than the expected 9 files, so
+  a future packaging regression cannot silently turn every parametrize
+  case into a zero-item pass-through. 15 new tests total.
+
+### Changed
+- `pyproject.toml` script entry flipped from
+  `agent_experience.cli:app` to `agent_experience.cli:_main_entrypoint`
+  so the unknown-command router runs before Typer's dispatcher.
+
+### Fixed
+- **#12** — `agex hook write` on Windows + Python 3.13 occasionally
+  aborted with `portalocker.exceptions.AlreadyLocked` when two
+  concurrent writers raced for the append lock (the kernel surfaces
+  `EDEADLK` from `msvcrt.locking()`; portalocker maps it to
+  `AlreadyLocked`). `core/hook_io.append_event` now retries up to
+  `_LOCK_MAX_ATTEMPTS = 5` times with jittered linear backoff
+  (`10ms × attempt + up to 10ms of jitter`), re-raising only if every
+  attempt fails. Two deterministic regression tests monkeypatch
+  `portalocker.lock` to simulate the flake and verify both the
+  recovery and the final-giveup paths.
+
 ## [0.6.0] — 2026-04-19
 
 ### Added
