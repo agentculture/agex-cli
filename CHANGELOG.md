@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-04-18
+
+### Added
+- `agex hook write <event> [key=value ...]` — append a JSON line with a
+  UTC ISO timestamp + parsed `key=value` pairs to
+  `.agex/data/<event>.json`. Silent, safe for concurrent invocation via
+  `portalocker`. Empty keys (`=foo`) are dropped; the positional
+  `<event>` always wins over any `event=...` pair.
+- `agex hook read --agent <backend>` — render `.agex/data/*.json` as a
+  markdown table with `ts | event | details` columns, one section per
+  known stream (`post-tool-use`, `user-prompt`, `stop`, `sessions`).
+  Empty streams show `_no events_`.
+- `commands/hook/` skill-folder (`SKILL.md` doubles as
+  `agex explain hook`; `assets/table.md.j2` for the read template).
+- Typer sub-app pattern — `hook` is wired via `app.add_typer(...)` with
+  two subcommands (`write` and `read`).
+- 51 tests passing (46 from 0.3.0 + 3 CLI tests + 1 empty-key guard
+  test + 1 malformed-JSON warning test); overall coverage 96%.
+
+### Changed
+- `core/hook_io.load_events` now catches `json.JSONDecodeError` on each
+  line and emits a `warnings.warn(...)` instead of raising, keeping
+  `agex hook read` read-only even when a `.agex/data/*.json` file is
+  partially written or externally edited.
+
 ## [0.3.0] — 2026-04-18
 
 ### Added

@@ -20,6 +20,41 @@ def test_load_events_missing_stream_returns_empty(tmp_path, monkeypatch):
     assert load_events("never-written") == []
 
 
+def test_append_event_rejects_invalid_stream_name(tmp_path, monkeypatch):
+    import pytest
+
+    monkeypatch.chdir(tmp_path)
+    ensure_init()
+    for bad in ("../evil", "/etc/passwd", "..", "a/b", "UPPER", "_leading"):
+        with pytest.raises(ValueError, match="invalid stream name"):
+            append_event(bad, {"k": "v"})
+        with pytest.raises(ValueError, match="invalid stream name"):
+            load_events(bad)
+    # Ensure no stray files landed in .agex/data/
+    assert list((tmp_path / ".agex" / "data").iterdir()) == []
+
+
+def test_load_events_skips_malformed_lines_with_warning(tmp_path, monkeypatch):
+    import pytest
+
+    monkeypatch.chdir(tmp_path)
+    ensure_init()
+    # Write a mix of valid and malformed lines (simulates a partial write
+    # or an externally edited data file).
+    data_file = tmp_path / ".agex" / "data" / "post-tool-use.json"
+    data_file.parent.mkdir(parents=True, exist_ok=True)
+    data_file.write_text(
+        '{"ts":"2026-04-18T10:00:00Z","tool":"Read"}\n'
+        '{"ts":"2026-04-18T10:00:01Z","tool"\n'  # truncated, invalid JSON
+        '{"ts":"2026-04-18T10:00:02Z","tool":"Write"}\n',
+        encoding="utf-8",
+    )
+    with pytest.warns(UserWarning, match="skipping malformed JSON line"):
+        events = load_events("post-tool-use")
+    assert len(events) == 2
+    assert [e["tool"] for e in events] == ["Read", "Write"]
+
+
 def test_render_table_produces_markdown():
     events = [
         {"ts": "2026-04-18T10:00:00Z", "tool": "Read"},

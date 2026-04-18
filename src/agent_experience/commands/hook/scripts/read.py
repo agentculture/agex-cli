@@ -1,0 +1,39 @@
+from importlib.resources import files
+from importlib.resources.abc import Traversable
+
+from agent_experience.core.backend import Backend
+from agent_experience.core.hook_io import load_events
+from agent_experience.core.paths import data_dir, ensure_init
+from agent_experience.core.render import render_string
+
+
+KNOWN_STREAMS = ["post-tool-use", "user-prompt", "stop", "sessions"]
+
+
+def _assets_root() -> Traversable:
+    # Anchor on the `commands` package (which has __init__.py) and navigate in.
+    # Avoids relying on namespace-package semantics for `assets/`, which is a
+    # data directory, not a package. Matches overview.py / learn.py pattern.
+    return files("agent_experience.commands").joinpath("hook", "assets")
+
+
+def run(backend: Backend) -> tuple[str, int, str]:
+    ensure_init()
+    streams = []
+    for name in KNOWN_STREAMS:
+        events = load_events(name)
+        summarized = [
+            {
+                "ts": e.get("ts", ""),
+                "details": ", ".join(f"{k}={v}" for k, v in e.items() if k not in ("ts", "event")),
+            }
+            for e in events
+        ]
+        streams.append({"name": name, "events": summarized})
+
+    template_text = _assets_root().joinpath("table.md.j2").read_text(encoding="utf-8")
+    out = render_string(
+        template_text,
+        {"backend": backend.value, "source": str(data_dir()), "streams": streams},
+    )
+    return (out, 0, "")
