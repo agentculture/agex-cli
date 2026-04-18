@@ -17,7 +17,7 @@ class CapabilityMatrix:
     def load(cls, sources: dict[Backend, Path]) -> "CapabilityMatrix":
         matrix: dict[Backend, dict[str, Any]] = {}
         for backend, path in sources.items():
-            matrix[backend] = yaml.safe_load(path.read_text()) or {}
+            matrix[backend] = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
         return cls(matrix)
 
 

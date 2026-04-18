@@ -4,7 +4,7 @@ from pathlib import Path
 
 import yaml
 
-_FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.DOTALL)
+_FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n(.*)\Z", re.DOTALL)
 
 REQUIRED_FIELDS = ("name", "description", "type")
 
@@ -19,7 +19,7 @@ class Skill:
 
 
 def load_skill(path: Path) -> Skill:
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     match = _FRONTMATTER_RE.match(text)
     if not match:
         raise ValueError(f"{path}: missing YAML frontmatter")

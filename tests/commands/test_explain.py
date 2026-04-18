@@ -24,3 +24,10 @@ def test_explain_unknown_topic_exits_2_with_menu():
     result = runner.invoke(app, ["explain", "unknown-topic-xyz"])
     assert result.exit_code == 2
     assert "unknown" in result.stderr.lower()
+
+
+def test_explain_rejects_path_traversal():
+    runner = CliRunner()
+    for bad in ("../../../etc/passwd", "/etc/passwd", "..", "a/b", "learn/introspect"):
+        result = runner.invoke(app, ["explain", bad])
+        assert result.exit_code == 2, f"expected exit 2 for topic={bad!r}"

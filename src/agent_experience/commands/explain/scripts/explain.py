@@ -1,42 +1,63 @@
+import re
 from importlib.resources import files
-from pathlib import Path
+from importlib.resources.abc import Traversable
 
-from agent_experience.core.skill_loader import load_skill
+from agent_experience.core.skill_loader import Skill, load_skill
 
-
-def _commands_root() -> Path:
-    return Path(str(files("agent_experience.commands")))
+_TOPIC_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 
 
-def resolve_topic(topic: str) -> tuple[str, Path] | None:
-    """Resolve topic per spec precedence. Returns (kind, path) or None."""
+def _commands_root() -> Traversable:
+    return files("agent_experience.commands")
+
+
+def resolve_topic(topic: str) -> tuple[str, Traversable] | None:
+    """Resolve topic per spec precedence. Returns (kind, traversable) or None.
+
+    Rejects any topic that isn't a simple slug to prevent path traversal.
+    """
+    if not _TOPIC_RE.match(topic):
+        return None
+
     cmds = _commands_root()
 
-    cmd_skill = cmds / topic / "SKILL.md"
-    if cmd_skill.exists():
+    cmd_skill = cmds.joinpath(topic, "SKILL.md")
+    if cmd_skill.is_file():
         return ("command", cmd_skill)
 
-    lesson_skill = cmds / "learn" / "assets" / "topics" / topic / "SKILL.md"
-    if lesson_skill.exists():
+    lesson_skill = cmds.joinpath("learn", "assets", "topics", topic, "SKILL.md")
+    if lesson_skill.is_file():
         return ("lesson", lesson_skill)
 
-    concept = cmds / "explain" / "assets" / "topics" / f"{topic}.md"
-    if concept.exists():
+    concept = cmds.joinpath("explain", "assets", "topics", f"{topic}.md")
+    if concept.is_file():
         return ("concept", concept)
 
     return None
+
+
+def _load_skill_from_traversable(trav: Traversable) -> Skill:
+    # load_skill expects a pathlib.Path; resolve via as_file when needed. Since
+    # our package resources are on a real filesystem (hatch force-include), the
+    # Traversable is a MultiplexedPath / PosixPath wrapper whose .read_text()
+    # works directly. We rebuild a Skill by parsing the body in-line to avoid
+    # Path coupling.
+    from importlib.resources import as_file
+
+    with as_file(trav) as path:
+        return load_skill(path)
 
 
 def run(topic: str) -> tuple[str, int, str]:
     """Return (stdout, exit_code, stderr)."""
     resolved = resolve_topic(topic)
     if resolved is None:
-        agex_page = _commands_root() / "explain" / "assets" / "topics" / "agex.md"
-        body = agex_page.read_text() if agex_page.exists() else ""
+        agex_page = _commands_root().joinpath("explain", "assets", "topics", "agex.md")
+        body = agex_page.read_text(encoding="utf-8") if agex_page.is_file() else ""
         return (body, 2, f"agex: error: unknown topic '{topic}'")
 
-    kind, path = resolved
+    kind, trav = resolved
     if kind == "concept":
-        return (path.read_text(), 0, "")
-    skill = load_skill(path)
+        return (trav.read_text(encoding="utf-8"), 0, "")
+    skill = _load_skill_from_traversable(trav)
     return (skill.body, 0, "")
