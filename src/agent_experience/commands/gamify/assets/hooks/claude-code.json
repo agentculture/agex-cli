@@ -1,0 +1,28 @@
+{
+  "fragments": [
+    {
+      "id": "agex:post-tool-use",
+      "event": "PostToolUse",
+      "hook": {
+        "type": "command",
+        "command": "agex hook write post-tool-use tool=$CLAUDE_TOOL_NAME"
+      }
+    },
+    {
+      "id": "agex:user-prompt",
+      "event": "UserPromptSubmit",
+      "hook": {
+        "type": "command",
+        "command": "agex hook write user-prompt"
+      }
+    },
+    {
+      "id": "agex:stop",
+      "event": "Stop",
+      "hook": {
+        "type": "command",
+        "command": "agex hook write stop"
+      }
+    }
+  ]
+}
