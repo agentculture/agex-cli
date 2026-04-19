@@ -53,7 +53,8 @@ def _load_hooks_file(path: Path) -> dict:
 
 def _write_hooks_file(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    # NOSONAR(pythonsecurity:S2083): path is Path.cwd()/.claude/hooks.json; backend is enum-validated by parse_backend() before reaching here. See sonar-project.properties for the full rationale.
+    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")  # NOSONAR
 
 
 def _merge_fragments(hooks: dict, fragments: list[dict]) -> tuple[list[str], int]:

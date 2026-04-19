@@ -54,14 +54,10 @@ on:
       - "src/**"
       - ".github/workflows/publish.yml"
 
-# Workflow-level default: least-privilege read-only. Publish jobs ADD
-# `id-token: write` for OIDC on top; `contents: read` propagates so
-# `actions/checkout` and `actions/download-artifact` both have the scopes
-# they need. Setting `permissions:` at job level REPLACES the default
-# entirely -- the workflow-level block ensures the replacement starts
-# from a usable baseline rather than from nothing.
-permissions:
-  contents: read
+# Permissions are declared per-job (least privilege). There is no
+# workflow-level `permissions:` block -- a job-level block fully replaces
+# any workflow-level default anyway, so declaring at job level keeps the
+# scope each job actually needs visible in one place.
 
 jobs:
   # --------------------------------------------------------------------------
@@ -74,6 +70,8 @@ jobs:
   build:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read   # actions/checkout
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
       - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39  # v3

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.1] — 2026-04-19
+
+### Fixed
+
+- **SonarCloud quality gate — 4 open issues resolved.** After the switch
+  to Automatic Analysis (`6a6160e`), project-level suppressions in
+  `sonar-project.properties` stopped being honored. Re-surfaced two
+  previously suppressed false positives and two real workflow-hygiene
+  findings:
+  - `pythonsecurity:S2083` on `commands/gamify/scripts/install.py` —
+    now suppressed inline with `# NOSONAR`; backend remains enum-validated
+    via `parse_backend()` before reaching the write. False positive.
+  - `pythonsecurity:S5496` on `core/render.py` — now suppressed inline
+    with `# NOSONAR(pythonsecurity:S5496)`; markdown-only output, Jinja
+    templates are always package-shipped. False positive.
+  - `githubactions:S8264` on `.github/workflows/publish.yml` — dropped
+    workflow-level `permissions: contents: read` and moved it onto the
+    `build` job (the only job without explicit job-level permissions).
+  - `githubactions:S7630` on `.github/workflows/docs.yml` — moved
+    `${{ github.head_ref }}` out of the inline `run:` script and into an
+    `env:` block so a crafted PR branch name can no longer inject shell
+    commands ahead of the sed sanitiser.
+
 ## [0.11.0] — 2026-04-19
 
 ### Added

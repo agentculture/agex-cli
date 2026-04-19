@@ -68,9 +68,15 @@ jobs:
       - name: Compute preview branch
         id: branch
         if: github.event_name == 'pull_request'
+        env:
+          # `github.head_ref` is attacker-controllable (branch name on a PR
+          # from a fork). Pass it through an env var rather than expanding
+          # it inline into the `run:` script -- env values are not re-parsed
+          # by the shell, so the sed sanitiser can no longer be bypassed by
+          # crafted branch names containing shell metacharacters.
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          raw="${{ github.head_ref }}"
-          safe=$(echo "$raw" | sed 's/[^a-zA-Z0-9-]/-/g; s/--*/-/g; s/^-//; s/-$//')
+          safe=$(printf '%s' "$HEAD_REF" | sed 's/[^a-zA-Z0-9-]/-/g; s/--*/-/g; s/^-//; s/-$//')
           echo "name=$safe" >> "$GITHUB_OUTPUT"
 
       # Deploy to Cloudflare Pages.
