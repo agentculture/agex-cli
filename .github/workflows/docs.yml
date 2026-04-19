@@ -110,11 +110,16 @@ jobs:
           #  * branch-alias URL     -- stays the same as you push new commits;
           #                            always reflects the latest preview.
           BODY="$MARKER"$'\n'"📘 **docs preview** for this PR:"$'\n\n'"- **Latest deploy:** $DEPLOY_URL  _(immutable — this specific commit)_"$'\n'"- **Branch alias:** $ALIAS_URL  _(always latest — updates on each push)_"
-          # `--paginate --slurp` ensures the marker comment is found even on
-          # PRs with >30 comments (default gh api page size); otherwise the
-          # marker search misses and we'd post a duplicate comment.
-          EXISTING=$(gh api --paginate --slurp "repos/$REPO/issues/$PR_NUMBER/comments" \
-            --jq "add | [.[] | select(.body | contains(\"$MARKER\")) | .id] | first // empty")
+          # `gh api --paginate` streams one JSON array per page; `jq -s`
+          # ("slurp") collects them into `[[page1], [page2], ...]`, `add`
+          # flattens to a single array, then the filter picks our marker.
+          # `gh api --slurp --jq` itself is mutually exclusive (see
+          # https://github.com/cli/cli/issues/8615), so the slurp has to
+          # happen inside jq. Without the pagination + slurp, PRs with
+          # more than 30 comments would miss the marker and post
+          # duplicate comments on each run.
+          EXISTING=$(gh api --paginate "repos/$REPO/issues/$PR_NUMBER/comments" \
+            | jq -rs "add | [.[] | select(.body | contains(\"$MARKER\")) | .id] | first // empty")
           if [ -n "$EXISTING" ]; then
             gh api --method PATCH "repos/$REPO/issues/comments/$EXISTING" \
               -f body="$BODY" > /dev/null
