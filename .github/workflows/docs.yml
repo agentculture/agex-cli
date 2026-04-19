@@ -9,14 +9,29 @@ on:
       - "src/agent_experience/core/skill_loader.py"
       - "scripts/sync_skill_md.py"
       - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "src/agent_experience/commands/**/SKILL.md"
+      - "src/agent_experience/core/skill_loader.py"
+      - "scripts/sync_skill_md.py"
+      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
   deployments: write
+  pull-requests: write  # for posting the preview URL comment on PRs
 
 jobs:
   build-and-deploy:
+    # Pull requests from forks cannot see the Cloudflare secrets (GitHub
+    # masks them for security), so the deploy step would fail. Skip the
+    # whole job for fork PRs and let reviewers rely on local `bundle exec
+    # jekyll serve`. This repo is single-owner today, so in practice
+    # every PR comes from a branch within OriNachum/agex and hits the
+    # fast path.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
@@ -43,11 +58,39 @@ jobs:
       - run: bundle exec jekyll build
         working-directory: docs
 
-      # Deploy to Cloudflare Pages. The Pages project "agex" and the custom
-      # domain binding (agex.culture.dev) are a one-time manual setup step;
-      # this workflow only runs on push-to-main, so PRs never deploy.
-      - uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd  # v3
+      # Compute the Cloudflare Pages branch name. On push-to-main this is
+      # "main" (the production branch); on PRs it's the head ref. CF Pages
+      # uses the branch name as a subdomain component, so we replace any
+      # slashes with dashes ("feat/v0.1-phase13" -> "feat-v0.1-phase13").
+      - name: Compute deploy branch
+        id: branch
+        run: |
+          raw="${{ github.head_ref || github.ref_name }}"
+          safe="${raw//\//-}"
+          echo "name=$safe" >> "$GITHUB_OUTPUT"
+
+      # Deploy to Cloudflare Pages.
+      # - push to main -> production deploy (agex.culture.dev updates)
+      # - pull_request -> preview deploy at <branch>.agex.pages.dev
+      # The project `agex` is a Direct Upload project, so CF won't auto-
+      # build on its own; this step IS the build+deploy pipeline.
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd  # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy docs/_site --project-name=agex --branch=main
+          command: pages deploy docs/_site --project-name=agex --branch=${{ steps.branch.outputs.name }}
+
+      # Post the preview URL back on the PR so reviewers can click through
+      # without digging into the workflow logs. Uses `gh pr comment`
+      # (preinstalled on GitHub runners) to avoid pulling in another SHA-
+      # pinned action. Runs only on PR events; skipped on push-to-main.
+      - name: Comment preview URL on PR
+        if: github.event_name == 'pull_request' && steps.deploy.outputs.deployment-url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          URL: ${{ steps.deploy.outputs.deployment-url }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body "📘 **docs preview:** $URL"
