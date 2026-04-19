@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] — 2026-04-19
+
+### Added
+- **Jekyll documentation site** under `docs/` — landing page
+  (`index.md`), `getting-started.md`, and auto-imported `commands/`
+  pages (one per top-level command, plus a `Commands` parent index).
+  Styled with the same just-the-docs `dark-terminal` theme + `_sass`
+  overlay used by culture / agentic-human / agentic-guides so the
+  agentic sites share a visual identity. Builds cleanly via
+  `bundle exec jekyll build`.
+- **`scripts/sync_skill_md.py`** — reuses the in-repo
+  `skill_loader.load_skill` to strip each command's agex-flavored YAML
+  frontmatter and emit a Jekyll-friendly one (`title`, `layout`,
+  `parent`, `nav_order`). Iterates `src/agent_experience/commands/` in
+  sorted order; writes with `encoding="utf-8"`. Lessons
+  (`learn/assets/topics/*`) stay in CLI territory for v0.1.
+- **`.github/workflows/docs.yml`** — triggers on `docs/**`,
+  `commands/**/SKILL.md`, `skill_loader.py`, the sync script, and the
+  workflow itself. Runs `sync_skill_md.py` before building so the
+  deployed site cannot drift from the CLI's shipped docs. Deploys to
+  Cloudflare Pages (project `agex`) on push-to-main only — PRs never
+  deploy.
+
+### Changed
+- Swapped the plan's reference from `cloudflare/pages-action@v1` (now
+  archived / DEPRECATED upstream) to `cloudflare/wrangler-action@v3`
+  with `pages deploy`. All third-party actions SHA-pinned with
+  trailing `# vN` comments per project convention.
+
+### Notes
+- The Cloudflare Pages project (`agex`) and the `agex.culture.dev`
+  custom-domain binding require a one-time manual setup step in the
+  Cloudflare dashboard; the workflow expects `CLOUDFLARE_API_TOKEN`
+  and `CLOUDFLARE_ACCOUNT_ID` repo secrets. Tracked separately.
+
 ## [0.7.0] — 2026-04-19
 
 ### Added
