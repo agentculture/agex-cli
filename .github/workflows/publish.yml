@@ -36,11 +36,14 @@ name: publish
 #   - GitHub repo → Settings → Environments → create `pypi` and `testpypi`
 #     (any required reviewers / wait timers live there)
 #
-# The PR job rewrites `version = "X.Y.Z"` to `"X.Y.Z.devN.M"` where N is
-# the workflow run number and M is the run attempt. PEP 440 orders this
-# strictly below the real release, so dev wheels never overshadow stable
-# ones on TestPyPI. The PR job comments the exact install command back on
-# the PR (sticky: edits the comment in place on reruns).
+# The PR job rewrites `version = "X.Y.Z"` to `"X.Y.Z.devN"` where N is
+# the workflow run number. PEP 440's dev segment is a single integer
+# (internal dots aren't allowed), so run_attempt is NOT encoded in the
+# version -- instead `skip-existing: true` on the TestPyPI upload makes
+# reruns idempotent. PEP 440 orders `.devN` strictly below the real
+# release, so dev wheels never overshadow stable ones on TestPyPI. The
+# PR job comments the exact install command back on the PR (sticky:
+# edits the comment in place on reruns).
 
 on:
   push:
@@ -121,14 +124,17 @@ jobs:
       - run: uv venv
       - run: uv pip install build
 
-      # Rewrite `[project].version` from `X.Y.Z` to `X.Y.Z.devN.M` where:
-      #   N = github.run_number (monotonic across the workflow's lifetime)
-      #   M = github.run_attempt (increments on re-runs of the same run_id)
-      # Without M, a re-run would try to publish the exact same version,
-      # which TestPyPI rejects. Parsing via tomllib + re-emitting only the
-      # `[project]` table's `version` key is more robust than `sed` -- if a
-      # future `[tool.*]` section ever introduces its own `version` key the
-      # regex approach would silently rewrite the wrong one.
+      # Rewrite `[project].version` from `X.Y.Z` to `X.Y.Z.devN` where
+      # N = github.run_number (monotonic across the workflow's lifetime).
+      # run_attempt is intentionally NOT encoded: PEP 440's dev segment is
+      # a single integer with no internal dots allowed, so concatenating
+      # would be ambiguous (`dev71` could mean run_number=7 + attempt=1 OR
+      # run_number=71). `skip-existing: true` on the TestPyPI upload below
+      # handles rerun idempotency instead. Parsing via tomllib + re-emitting
+      # only the `[project]` table's `version` key is more robust than
+      # `sed` -- if a future `[tool.*]` section ever introduces its own
+      # `version` key the regex approach would silently rewrite the wrong
+      # one.
       - name: Set dev version
         id: devver
         run: |
@@ -137,7 +143,7 @@ jobs:
           import re, tomllib
           data = open('pyproject.toml').read()
           base = tomllib.loads(data)['project']['version']
-          dev = f'{base}.dev${{ github.run_number }}${{ github.run_attempt }}'
+          dev = f'{base}.dev${{ github.run_number }}'
           # Fail-closed: bound the final version to PEP 440's safe shape
           # before substituting into pyproject.toml (defense in depth against
           # a hostile value sneaking into the [project].version field).
@@ -215,19 +221,27 @@ jobs:
           skip-existing: true
 
   # --------------------------------------------------------------------------
-  # Creates the `v<version>` annotated tag on main so the PyPI release and
-  # the GitHub Release have a matching git anchor. Runs AFTER the TestPyPI
-  # canary so we don't tag a version that failed to build a valid wheel.
+  # Ensures an annotated `v<version>` tag exists on origin so the PyPI
+  # release and the GitHub Release have a matching git anchor. Runs AFTER
+  # the TestPyPI canary so we don't tag a version that failed to build.
   #
-  # Idempotent: if the tag already exists (e.g. on a re-run of the same
-  # main push), this job sets `tagged=false` and every downstream job
-  # short-circuits via `if: needs.autotag.outputs.tagged == 'true'`. No
-  # "already exists" error from git push, no duplicate publish attempt.
+  # Output semantics: `tag_present = true` when the tag exists on origin
+  # AFTER this job finishes, regardless of whether we had to create it or
+  # it was already there. Downstream jobs gate on that, not on "did this
+  # specific run push the tag", so reruns after a transient PyPI or
+  # Release failure can complete the publish instead of getting stuck in
+  # a "tag exists but release didn't complete" dead-end. Idempotency for
+  # the actual publish/release steps is handled in those jobs (skip-existing
+  # on PyPI, `gh release view` probe before `gh release create`).
+  #
+  # Tag existence is checked against origin via `git ls-remote`, not the
+  # local ref store -- actions/checkout's default tag-fetching behavior
+  # varies with fetch-depth / options, and a false negative here would
+  # cause `git push origin v$VERSION` to fail on an already-pushed tag.
   #
   # GITHUB_TOKEN-pushed tags do not retrigger workflows (documented GitHub
   # loop-prevention). That's fine -- publish-pypi runs inline in the same
-  # workflow run, keyed off this job's `tagged` output. The tag push is
-  # purely a historical / release-anchor record.
+  # workflow run, keyed off `tag_present`.
   # --------------------------------------------------------------------------
   autotag:
     needs: publish-testpypi
@@ -236,8 +250,8 @@ jobs:
     permissions:
       contents: write   # git push tag
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      tagged:  ${{ steps.tag.outputs.tagged }}
+      version:     ${{ steps.version.outputs.version }}
+      tag_present: ${{ steps.tag.outputs.tag_present }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
@@ -251,40 +265,40 @@ jobs:
           VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Detected version: $VERSION"
-      - name: Push tag if missing
+      - name: Ensure tag exists on origin
         id: tag
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           set -e
-          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-            echo "Tag v$VERSION already exists — skipping auto-tag and downstream publish."
-            echo "tagged=false" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already present on origin — downstream jobs will run idempotently."
           else
             git config user.name  "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git tag -a "v$VERSION" -m "Release v$VERSION"
             git push origin "v$VERSION"
             echo "Created and pushed tag v$VERSION"
-            echo "tagged=true" >> "$GITHUB_OUTPUT"
           fi
+          echo "tag_present=true" >> "$GITHUB_OUTPUT"
 
   # --------------------------------------------------------------------------
   # Real PyPI publish. Runs inline on main after `autotag` -- the dist
   # artifact produced by `build` is the same wheel we already canaried on
   # TestPyPI, so there's no rebuild.
   #
-  # No `skip-existing: true` here on purpose: the `autotag.tagged == 'true'`
-  # gate already ensures we only reach this step for a newly-minted version.
-  # If we somehow land here with a version that's already on PyPI, that's
-  # a real error we'd rather see surfaced than silently swallowed.
+  # `skip-existing: true` is set so reruns after a transient failure (or
+  # after a partial-success run where the tag got pushed but a later step
+  # failed) converge cleanly instead of failing on "file already exists".
+  # Combined with the `autotag` gate, the normal case is a real upload;
+  # the abnormal case is a clear no-op log line.
   # --------------------------------------------------------------------------
   publish-pypi:
     needs: [build, autotag]
     if: >-
       github.event_name == 'push'
       && github.ref == 'refs/heads/main'
-      && needs.autotag.outputs.tagged == 'true'
+      && needs.autotag.outputs.tag_present == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -296,17 +310,24 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
+        with:
+          skip-existing: true
 
   # --------------------------------------------------------------------------
-  # Creates a GitHub Release at the tag `autotag` just pushed, with the
+  # Creates a GitHub Release at the tag `autotag` ensured exists, with
   # body pulled from the matching `## [X.Y.Z]` section of CHANGELOG.md.
   # If the section is empty (or missing), falls back to a stub rather than
   # failing the workflow -- the release anchor is more important than
   # perfect notes.
+  #
+  # Idempotent: if a Release for this tag already exists (e.g. a rerun
+  # after a partial failure), `gh release view` succeeds and we skip
+  # creation. Otherwise we create it. No "release already exists" error
+  # blocks reruns.
   # --------------------------------------------------------------------------
   github-release:
     needs: [autotag, publish-pypi]
-    if: needs.autotag.outputs.tagged == 'true'
+    if: needs.autotag.outputs.tag_present == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write   # gh release create
@@ -331,19 +352,25 @@ jobs:
             }
             capturing { print }
           ' CHANGELOG.md > release-notes.md
-          # Strip leading/trailing blank lines for tidy rendering.
-          sed -i -e '/./,$!d' -e :a -e '/^\s*$/{$d;N;ba' -e '}' release-notes.md || true
+          # Strip leading/trailing blank lines for tidy rendering. `\s` is
+          # not portable in sed (GNU/BSD differ); use the POSIX class.
+          sed -i -e '/./,$!d' -e :a -e '/^[[:space:]]*$/{$d;N;ba' -e '}' release-notes.md || true
           if [ ! -s release-notes.md ]; then
             echo "See CHANGELOG.md for details." > release-notes.md
           fi
           echo "--- release-notes.md ---"
           cat release-notes.md
           echo "------------------------"
-      - name: Create GitHub Release
+      - name: Create GitHub Release (or skip if it already exists)
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.autotag.outputs.version }}
         run: |
-          gh release create "v$VERSION" \
-            --title "v$VERSION" \
-            --notes-file release-notes.md
+          set -e
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists — skipping creation."
+          else
+            gh release create "v$VERSION" \
+              --title "v$VERSION" \
+              --notes-file release-notes.md
+          fi

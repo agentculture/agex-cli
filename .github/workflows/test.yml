@@ -64,28 +64,43 @@ jobs:
         if: steps.changes.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
+          set -e
           PR_VERSION=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
           MAIN_VERSION=$(git show origin/main:pyproject.toml | python3 -c "import sys,tomllib; print(tomllib.loads(sys.stdin.read())['project']['version'])")
 
+          MARKER='<!-- version-check -->'
+
+          # Find any existing sticky comment. Paginate so the lookup is
+          # correct on long-lived PRs with >30 comments (same pattern as
+          # docs.yml / publish.yml's agex-pypi-preview comment). `gh api
+          # --slurp --jq` can't be combined (cli#8615), so the slurp has
+          # to happen inside jq.
+          EXISTING=$(gh api --paginate "repos/$REPO/issues/$PR_NUMBER/comments" \
+            | jq -rs "add | [.[] | select(.body | contains(\"$MARKER\")) | .id] | first // empty")
+
           if [ "$PR_VERSION" = "$MAIN_VERSION" ]; then
-            MARKER="<!-- version-check -->"
             BODY="⚠️ **Version not bumped** — \`pyproject.toml\` still has \`$PR_VERSION\` (same as main). Run \`/version-bump patch\` (or minor/major) before merging to avoid a failed PyPI publish.
 
           $MARKER"
 
-            EXISTING=$(gh api repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
-              --jq '.[] | select(.body | contains("<!-- version-check -->")) | .id' | head -1)
-
             if [ -n "$EXISTING" ]; then
-              gh api repos/${{ github.repository }}/issues/comments/$EXISTING \
+              gh api "repos/$REPO/issues/comments/$EXISTING" \
                 -X PATCH -f body="$BODY" > /dev/null
             else
-              gh pr comment ${{ github.event.pull_request.number }} --body "$BODY" || true
+              gh pr comment "$PR_NUMBER" --body "$BODY" || true
             fi
 
             echo "::error::Version $PR_VERSION matches main. Bump before merging."
             exit 1
           else
             echo "Version bumped: $MAIN_VERSION -> $PR_VERSION"
+            # Clean up a stale "not bumped" warning from an earlier failing
+            # run so the PR reflects the current (green) state.
+            if [ -n "$EXISTING" ]; then
+              gh api "repos/$REPO/issues/comments/$EXISTING" -X DELETE > /dev/null
+              echo "Removed stale version-check comment #$EXISTING"
+            fi
           fi
