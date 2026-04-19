@@ -35,7 +35,7 @@ jobs:
       - run: uv run python scripts/sync_skill_md.py
 
       # Jekyll build.
-      - uses: ruby/setup-ruby@e5517072e87f198d9533967ae13d97c11b604005  # v1.99.0
+      - uses: ruby/setup-ruby@7372622e62b60b3cb750dcd2b9e32c247ffec26a  # v1
         with:
           ruby-version: "3.2"
           bundler-cache: true
