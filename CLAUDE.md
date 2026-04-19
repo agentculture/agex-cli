@@ -72,8 +72,10 @@ uv run pytest --cov=src/agent_experience --cov-report=xml --cov-report=term
 
 ## CI surface
 
-- `.github/workflows/test.yml` — matrix: 3 OS × 4 Python (3.10–3.13). Runs `uv run pytest`.
-- `.github/workflows/build.yml` — single ubuntu-3.11 job that installs deps, runs `pytest --cov`, then `SonarSource/sonarqube-scan-action`. SonarCloud reads `coverage.xml` via `sonar.python.coverage.reportPaths` in `sonar-project.properties`.
+- `.github/workflows/test.yml` — matrix: 3 OS × 4 Python (3.10–3.13) running `uv run pytest`. Also runs a `version-check` job on PRs that fails (with a sticky `<!-- version-check -->` comment) when `pyproject.toml`'s version on the PR matches the one on `main` and any code file under `src/` / `tests/` / `pyproject.toml` changed. Docs-only PRs skip the check.
+- `.github/workflows/publish.yml` — builds sdist + wheel. PRs publish a per-PR dev version to TestPyPI (sticky install-command comment); pushes to `main` publish the stable version to TestPyPI (canary), then an `autotag` job pushes `v<version>` if missing, which gates the inline `publish-pypi` + `github-release` jobs. No manual tagging — bumping `pyproject.toml` is the release signal.
+- `.github/workflows/docs.yml` — builds the Jekyll docs site and deploys to Cloudflare Pages (per-PR preview + production on main).
+- SonarCloud is configured as **Automatic Analysis** on the repo (no CI workflow). Coverage and quality are read by SonarCloud directly.
 - All third-party actions are **pinned to full commit SHAs** with trailing `# vN` comments (rule `githubactions:S7637`). Keep new actions pinned the same way.
 
 ## SonarCloud notes
@@ -84,6 +86,7 @@ uv run pytest --cov=src/agent_experience --cov-report=xml --cov-report=term
 ## Git workflow
 
 - Branch for all changes. Don't push to `main` directly.
-- Bump version in `pyproject.toml` (and append a `[Unreleased]` line in `CHANGELOG.md`) before opening a PR.
+- Bump version in `pyproject.toml` before opening a PR (CI's `version-check` job will fail the PR if you forget — `/version-bump patch` / `minor` / `major` is the fix; it also inserts a fresh section in `CHANGELOG.md`).
 - Push, open a PR, let CI + SonarCloud + Qodo + Copilot run. Address inline comments + resolve threads before merge.
+- Merging to `main` publishes to PyPI automatically (via `autotag` → `publish-pypi` → `github-release` in `publish.yml`). No manual tagging.
 - When posting on GitHub on the user's behalf (PR descriptions, issue replies, review-thread replies), sign with `— Claude` so it's clear the message came from an AI.

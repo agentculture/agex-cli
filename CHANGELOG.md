@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-04-19
+
+### Added
+
+- **Auto-tag + PyPI release on main.** Every push to `main` now publishes
+  the stable version to TestPyPI (canary), auto-creates the `v<version>`
+  git tag if missing, publishes to PyPI, and creates a GitHub Release with
+  the matching CHANGELOG section. No manual tagging needed; the version
+  field in `pyproject.toml` is the release signal.
+- **`version-check` CI job** (`.github/workflows/test.yml`) — PRs that
+  touch `src/`, `tests/`, or `pyproject.toml` without bumping the version
+  fail with a sticky PR comment pointing at `/version-bump`. Mirrors the
+  enforcement pattern already in use by culture.
+
+### Changed
+
+- Dropped the `v*` tag trigger from `publish.yml`. Manual tagging is
+  superseded by the auto-tag job; tags still exist as historical/Release
+  anchors, they just get created for you.
+
 ## [0.10.0] — 2026-04-19
 
 ### Added

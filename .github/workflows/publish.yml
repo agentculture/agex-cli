@@ -1,12 +1,31 @@
 name: publish
 
-# Publishes sdist + wheel to:
-#   - TestPyPI  on every PR               (dev version -- installable preview)
-#   - TestPyPI  on every push to main     (stable version from pyproject.toml)
-#   - PyPI      on every push of a v* tag
+# Publishes sdist + wheel with the shape:
 #
-# Trusted Publishing (OIDC) is used in every publish job -- no API tokens. For
-# this to work, the following one-time configuration must exist:
+#   - PR              → TestPyPI  (dev version -- per-PR installable preview)
+#   - Push to main    → TestPyPI  (stable version, canary)
+#                    ↓ if v<version> tag doesn't exist yet
+#                    → autotag    (creates + pushes the tag)
+#                    ↓
+#                    → PyPI       (real release, only when autotag succeeded)
+#                    ↓
+#                    → GitHub Release with the matching CHANGELOG section
+#
+# Manual tagging is NOT required -- the `autotag` job turns the version field
+# in `pyproject.toml` into the release signal. Forgetting to bump is caught
+# on the PR by the `version-check` job in test.yml, which fails with a sticky
+# comment pointing at `/version-bump`.
+#
+# The `v*` tag trigger is deliberately absent: tags are created by this
+# workflow (via GITHUB_TOKEN, which by design does not retrigger workflows
+# to prevent loops), and PyPI publish runs inline in the same workflow run.
+# A tag pushed manually from a laptop would therefore not fire a publish --
+# if you ever need that, use `gh workflow run` on this file's main branch
+# or add a `workflow_dispatch:` trigger.
+#
+# Trusted Publishing (OIDC) is used in every publish job -- no API tokens.
+# One-time setup on pypi.org / test.pypi.org and in the repo's Environments
+# (`pypi`, `testpypi`) is documented in the original header below:
 #
 #   - PyPI project `agex-cli` → Publishing → Add a GitHub pending publisher
 #       Owner: OriNachum  Repo: agex
@@ -17,22 +36,15 @@ name: publish
 #   - GitHub repo → Settings → Environments → create `pypi` and `testpypi`
 #     (any required reviewers / wait timers live there)
 #
-# The PR job rewrites `version = "X.Y.Z"` to `"X.Y.Z.devN"` (N = the workflow
-# run number) before building, so each PR produces its own installable
-# TestPyPI release and reviewers can:
-#
-#     uv tool install --index-url https://test.pypi.org/simple/ \
-#       --extra-index-url https://pypi.org/simple/ \
-#       agex-cli==X.Y.Z.devN
-#
-# PEP 440 orders `X.Y.Z.devN < X.Y.Z`, so dev releases never overshadow the
-# real thing on TestPyPI. The PR job comments the exact install command back
-# on the PR (sticky: edits the comment in place on reruns).
+# The PR job rewrites `version = "X.Y.Z"` to `"X.Y.Z.devN.M"` where N is
+# the workflow run number and M is the run attempt. PEP 440 orders this
+# strictly below the real release, so dev wheels never overshadow stable
+# ones on TestPyPI. The PR job comments the exact install command back on
+# the PR (sticky: edits the comment in place on reruns).
 
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
     paths:
       - "pyproject.toml"
@@ -50,14 +62,14 @@ permissions:
 
 jobs:
   # --------------------------------------------------------------------------
-  # Shared build job for the main-push + tag paths. Produces a single `dist`
-  # artifact consumed by both publish-testpypi (on main) and publish-pypi
-  # (on v* tags). Skipped on pull_request -- the PR path has its own build
-  # inside `publish-pr-testpypi` because it needs to rewrite the version
-  # before building.
+  # Shared build job for the main-push path. Produces a single `dist`
+  # artifact consumed by publish-testpypi (canary) and publish-pypi (real
+  # release, inline after autotag). Skipped on pull_request -- the PR path
+  # has its own build inside `publish-pr-testpypi` because it needs to
+  # rewrite the version before building.
   # --------------------------------------------------------------------------
   build:
-    if: github.event_name != 'pull_request'
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
@@ -202,9 +214,77 @@ jobs:
           # See header comment -- idempotent on repeat pushes of the same version.
           skip-existing: true
 
+  # --------------------------------------------------------------------------
+  # Creates the `v<version>` annotated tag on main so the PyPI release and
+  # the GitHub Release have a matching git anchor. Runs AFTER the TestPyPI
+  # canary so we don't tag a version that failed to build a valid wheel.
+  #
+  # Idempotent: if the tag already exists (e.g. on a re-run of the same
+  # main push), this job sets `tagged=false` and every downstream job
+  # short-circuits via `if: needs.autotag.outputs.tagged == 'true'`. No
+  # "already exists" error from git push, no duplicate publish attempt.
+  #
+  # GITHUB_TOKEN-pushed tags do not retrigger workflows (documented GitHub
+  # loop-prevention). That's fine -- publish-pypi runs inline in the same
+  # workflow run, keyed off this job's `tagged` output. The tag push is
+  # purely a historical / release-anchor record.
+  # --------------------------------------------------------------------------
+  autotag:
+    needs: publish-testpypi
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # git push tag
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tagged:  ${{ steps.tag.outputs.tagged }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.11"
+      - name: Read version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Detected version: $VERSION"
+      - name: Push tag if missing
+        id: tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -e
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "Tag v$VERSION already exists — skipping auto-tag and downstream publish."
+            echo "tagged=false" >> "$GITHUB_OUTPUT"
+          else
+            git config user.name  "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "v$VERSION" -m "Release v$VERSION"
+            git push origin "v$VERSION"
+            echo "Created and pushed tag v$VERSION"
+            echo "tagged=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  # --------------------------------------------------------------------------
+  # Real PyPI publish. Runs inline on main after `autotag` -- the dist
+  # artifact produced by `build` is the same wheel we already canaried on
+  # TestPyPI, so there's no rebuild.
+  #
+  # No `skip-existing: true` here on purpose: the `autotag.tagged == 'true'`
+  # gate already ensures we only reach this step for a newly-minted version.
+  # If we somehow land here with a version that's already on PyPI, that's
+  # a real error we'd rather see surfaced than silently swallowed.
+  # --------------------------------------------------------------------------
   publish-pypi:
-    needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, autotag]
+    if: >-
+      github.event_name == 'push'
+      && github.ref == 'refs/heads/main'
+      && needs.autotag.outputs.tagged == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
@@ -216,3 +296,54 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
+
+  # --------------------------------------------------------------------------
+  # Creates a GitHub Release at the tag `autotag` just pushed, with the
+  # body pulled from the matching `## [X.Y.Z]` section of CHANGELOG.md.
+  # If the section is empty (or missing), falls back to a stub rather than
+  # failing the workflow -- the release anchor is more important than
+  # perfect notes.
+  # --------------------------------------------------------------------------
+  github-release:
+    needs: [autotag, publish-pypi]
+    if: needs.autotag.outputs.tagged == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # gh release create
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+        with:
+          ref: v${{ needs.autotag.outputs.version }}
+          fetch-depth: 1
+      - name: Extract CHANGELOG section
+        env:
+          VERSION: ${{ needs.autotag.outputs.version }}
+        run: |
+          set -e
+          # Pull the section from `## [X.Y.Z]` up to (but not including)
+          # the next `## [` header. The em-dash variant in existing entries
+          # (`— 2026-04-19`) means we match on the bracketed version only,
+          # not the full header line.
+          awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (capturing) exit
+              if ($0 ~ "^## \\[" ver "\\]") { capturing=1; next }
+            }
+            capturing { print }
+          ' CHANGELOG.md > release-notes.md
+          # Strip leading/trailing blank lines for tidy rendering.
+          sed -i -e '/./,$!d' -e :a -e '/^\s*$/{$d;N;ba' -e '}' release-notes.md || true
+          if [ ! -s release-notes.md ]; then
+            echo "See CHANGELOG.md for details." > release-notes.md
+          fi
+          echo "--- release-notes.md ---"
+          cat release-notes.md
+          echo "------------------------"
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.autotag.outputs.version }}
+        run: |
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes-file release-notes.md
