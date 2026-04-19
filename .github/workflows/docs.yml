@@ -9,14 +9,29 @@ on:
       - "src/agent_experience/core/skill_loader.py"
       - "scripts/sync_skill_md.py"
       - ".github/workflows/docs.yml"
+  pull_request:
+    paths:
+      - "docs/**"
+      - "src/agent_experience/commands/**/SKILL.md"
+      - "src/agent_experience/core/skill_loader.py"
+      - "scripts/sync_skill_md.py"
+      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
   contents: read
   deployments: write
+  pull-requests: write  # for posting the preview URL comment on PRs
 
 jobs:
   build-and-deploy:
+    # Pull requests from forks cannot see the Cloudflare secrets (GitHub
+    # masks them for security), so the deploy step would fail. Skip the
+    # whole job for fork PRs and let reviewers rely on local `bundle exec
+    # jekyll serve`. This repo is single-owner today, so in practice
+    # every PR comes from a branch within OriNachum/agex and hits the
+    # fast path.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
@@ -43,11 +58,65 @@ jobs:
       - run: bundle exec jekyll build
         working-directory: docs
 
-      # Deploy to Cloudflare Pages. The Pages project "agex" and the custom
-      # domain binding (agex.culture.dev) are a one-time manual setup step;
-      # this workflow only runs on push-to-main, so PRs never deploy.
-      - uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd  # v3
+      # Compute the Cloudflare Pages branch name from the PR's head ref.
+      # CF Pages uses the branch name as a subdomain component, so only
+      # `[a-zA-Z0-9-]` are safe: `/`, `.`, whitespace, and other chars
+      # produce a failing branch-alias URL. Replace unsafe chars with `-`,
+      # collapse consecutive dashes, and strip leading/trailing dashes.
+      # Only used on pull_request events -- push and workflow_dispatch
+      # always deploy `--branch=main` (the production branch).
+      - name: Compute preview branch
+        id: branch
+        if: github.event_name == 'pull_request'
+        run: |
+          raw="${{ github.head_ref }}"
+          safe=$(echo "$raw" | sed 's/[^a-zA-Z0-9-]/-/g; s/--*/-/g; s/^-//; s/-$//')
+          echo "name=$safe" >> "$GITHUB_OUTPUT"
+
+      # Deploy to Cloudflare Pages.
+      # - push / workflow_dispatch -> `--branch=main` = production
+      # - pull_request              -> `--branch=<sanitized-head-ref>` = preview
+      # The project `agex` is a Direct Upload project, so CF won't auto-
+      # build on its own; this step IS the build+deploy pipeline.
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd  # v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy docs/_site --project-name=agex --branch=main
+          command: pages deploy docs/_site --project-name=agex --branch=${{ github.event_name == 'pull_request' && steps.branch.outputs.name || 'main' }}
+
+      # Post the preview URL back on the PR so reviewers can click through
+      # without digging into the workflow logs. Uses a marker
+      # (`<!-- agex-docs-preview -->`) to update the existing comment on
+      # subsequent pushes instead of spamming the PR thread with a new
+      # comment per workflow run. `gh` is preinstalled on GitHub runners
+      # so no extra SHA-pinned action is needed. Runs only on PR events.
+      - name: Post (or update) preview URL comment
+        if: github.event_name == 'pull_request' && steps.deploy.outputs.deployment-url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DEPLOY_URL: ${{ steps.deploy.outputs.deployment-url }}
+          BRANCH: ${{ steps.branch.outputs.name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -e
+          MARKER='<!-- agex-docs-preview -->'
+          ALIAS_URL="https://${BRANCH}.agex.pages.dev"
+          # Two URLs intentionally:
+          #  * deploy URL (hash)    -- immutable pin for THIS deploy, ideal for
+          #                            review bookmarks that should not drift.
+          #  * branch-alias URL     -- stays the same as you push new commits;
+          #                            always reflects the latest preview.
+          BODY="$MARKER"$'\n'"📘 **docs preview** for this PR:"$'\n\n'"- **Latest deploy:** $DEPLOY_URL  _(immutable — this specific commit)_"$'\n'"- **Branch alias:** $ALIAS_URL  _(always latest — updates on each push)_"
+          EXISTING=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" \
+            --jq "[.[] | select(.body | contains(\"$MARKER\")) | .id] | first // empty")
+          if [ -n "$EXISTING" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$EXISTING" \
+              -f body="$BODY" > /dev/null
+            echo "Updated existing preview comment #$EXISTING"
+          else
+            gh pr comment "$PR_NUMBER" --body "$BODY"
+            echo "Created new preview comment"
+          fi
