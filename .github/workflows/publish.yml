@@ -38,8 +38,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
       - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39  # v3
@@ -53,11 +51,6 @@ jobs:
       - run: uv venv
       - run: uv pip install build
       - run: uv run python -m build
-
-      # Export the version for downstream jobs / release notes.
-      - id: meta
-        run: |
-          uv run python -c "import tomllib; print('version=' + tomllib.load(open('pyproject.toml','rb'))['project']['version'])" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
