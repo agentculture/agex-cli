@@ -29,10 +29,7 @@ def _all_skill_md_relpaths() -> list[str]:
     package. Strings survive across `as_file()` boundaries; Path objects
     captured inside the context do not."""
     with as_file(files("agent_experience.commands")) as root:
-        return sorted(
-            "/".join(p.relative_to(root).parts)
-            for p in root.glob("**/SKILL.md")
-        )
+        return sorted("/".join(p.relative_to(root).parts) for p in root.glob("**/SKILL.md"))
 
 
 # ---------------------------------------------------------------------------
@@ -40,6 +37,7 @@ def _all_skill_md_relpaths() -> list[str]:
 # If the import mechanics break, all parametrized tests silently pass (0
 # items), so we add an explicit lower-bound check here.
 # ---------------------------------------------------------------------------
+
 
 def test_meta_test_discovers_all_known_skills() -> None:
     """Verify that at least 9 SKILL.md files are found (5 commands + 4 lessons)."""
@@ -54,6 +52,7 @@ def test_meta_test_discovers_all_known_skills() -> None:
 # Parametrized frontmatter tests — one test case per SKILL.md file.
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize("relpath", _all_skill_md_relpaths(), ids=str)
 def test_skill_md_has_valid_frontmatter(relpath: str) -> None:
     """Each SKILL.md must parse without error and have name, description, and type."""
@@ -62,19 +61,20 @@ def test_skill_md_has_valid_frontmatter(relpath: str) -> None:
         skill = load_skill(skill_path)
     assert skill.name, f"{relpath}: 'name' frontmatter field is empty"
     assert skill.description, f"{relpath}: 'description' frontmatter field is empty"
-    assert skill.type in _VALID_TYPES, (
-        f"{relpath}: 'type' value {skill.type!r} is not one of {sorted(_VALID_TYPES)}"
-    )
+    assert (
+        skill.type in _VALID_TYPES
+    ), f"{relpath}: 'type' value {skill.type!r} is not one of {sorted(_VALID_TYPES)}"
 
 
 # ---------------------------------------------------------------------------
 # Structural test — every top-level command must have a SKILL.md.
 # ---------------------------------------------------------------------------
 
+
 def test_every_command_has_skill_md() -> None:
     """Each of the five top-level commands must ship a SKILL.md."""
     with as_file(files("agent_experience.commands")) as commands_root:
         for cmd in ("explain", "overview", "learn", "gamify", "hook"):
-            assert (commands_root / cmd / "SKILL.md").is_file(), (
-                f"{cmd}/SKILL.md is missing from agent_experience.commands"
-            )
+            assert (
+                commands_root / cmd / "SKILL.md"
+            ).is_file(), f"{cmd}/SKILL.md is missing from agent_experience.commands"

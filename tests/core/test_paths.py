@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from agent_experience.core.paths import agex_dir, config_path, data_dir, ensure_init
 
 

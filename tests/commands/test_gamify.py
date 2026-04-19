@@ -42,9 +42,15 @@ def test_gamify_install_preserves_user_hooks(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     claude_dir = tmp_path / ".claude"
     claude_dir.mkdir()
-    (claude_dir / "hooks.json").write_text(json.dumps({
-        "PostToolUse": [{"id": "user:custom", "hook": {"type": "command", "command": "echo hi"}}]
-    }))
+    (claude_dir / "hooks.json").write_text(
+        json.dumps(
+            {
+                "PostToolUse": [
+                    {"id": "user:custom", "hook": {"type": "command", "command": "echo hi"}}
+                ]
+            }
+        )
+    )
     runner = CliRunner()
     runner.invoke(app, ["gamify", "--agent", "claude-code"])
     data = json.loads((claude_dir / "hooks.json").read_text())
@@ -57,9 +63,15 @@ def test_gamify_uninstall_removes_only_agex_fragments(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     claude_dir = tmp_path / ".claude"
     claude_dir.mkdir()
-    (claude_dir / "hooks.json").write_text(json.dumps({
-        "PostToolUse": [{"id": "user:custom", "hook": {"type": "command", "command": "echo hi"}}]
-    }))
+    (claude_dir / "hooks.json").write_text(
+        json.dumps(
+            {
+                "PostToolUse": [
+                    {"id": "user:custom", "hook": {"type": "command", "command": "echo hi"}}
+                ]
+            }
+        )
+    )
     runner = CliRunner()
     runner.invoke(app, ["gamify", "--agent", "claude-code"])
     result = runner.invoke(app, ["gamify", "--uninstall", "--agent", "claude-code"])
@@ -125,10 +137,19 @@ def test_gamify_install_does_not_reformat_when_nothing_new(tmp_path, monkeypatch
     claude_dir.mkdir()
     seeded = {
         "PostToolUse": [
-            {"id": "agex:post-tool-use", "hook": {"type": "command", "command": "agex hook write post-tool-use tool=\"$CLAUDE_TOOL_NAME\""}},
+            {
+                "id": "agex:post-tool-use",
+                "hook": {
+                    "type": "command",
+                    "command": 'agex hook write post-tool-use tool="$CLAUDE_TOOL_NAME"',
+                },
+            },
         ],
         "UserPromptSubmit": [
-            {"id": "agex:user-prompt", "hook": {"type": "command", "command": "agex hook write user-prompt"}},
+            {
+                "id": "agex:user-prompt",
+                "hook": {"type": "command", "command": "agex hook write user-prompt"},
+            },
         ],
         "Stop": [
             {"id": "agex:stop", "hook": {"type": "command", "command": "agex hook write stop"}},

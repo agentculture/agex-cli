@@ -63,12 +63,8 @@ def run_topic(topic: str, backend: Backend) -> tuple[str, int, str]:
         return (menu_out, 2, f"agex: error: unknown topic '{topic}'")
 
     skill = _load_skill_from_traversable(skill_md)
-    template_path = topic_dir.joinpath(
-        "assets", "skill-template", backend.value, _SKILL_FILENAME
-    )
-    template_body = (
-        template_path.read_text(encoding="utf-8") if template_path.is_file() else ""
-    )
+    template_path = topic_dir.joinpath("assets", "skill-template", backend.value, _SKILL_FILENAME)
+    template_body = template_path.read_text(encoding="utf-8") if template_path.is_file() else ""
     rendered = render_string(
         skill.body,
         {"backend": backend.value, "skill_template_body": template_body},

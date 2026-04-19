@@ -5,14 +5,13 @@ from importlib.resources.abc import Traversable
 from pathlib import Path
 
 from agent_experience.core.backend import Backend
-from agent_experience.core.config import load as load_config, save as save_config
+from agent_experience.core.config import load as load_config
+from agent_experience.core.config import save as save_config
 from agent_experience.core.paths import ensure_init
 
 
 def _fragments_file() -> Traversable:
-    return files("agent_experience.commands.gamify").joinpath(
-        "assets", "hooks", "claude-code.json"
-    )
+    return files("agent_experience.commands.gamify").joinpath("assets", "hooks", "claude-code.json")
 
 
 def _fragments_for(backend: Backend) -> list[dict]:
@@ -30,8 +29,7 @@ def _hooks_file_for(backend: Backend, project_dir: Path) -> Path | None:
 
 def _refuse(path: Path, reason: str) -> ValueError:
     return ValueError(
-        f"{path} {reason}; refusing to overwrite. "
-        "Fix or remove the file before re-running."
+        f"{path} {reason}; refusing to overwrite. " "Fix or remove the file before re-running."
     )
 
 
@@ -165,8 +163,7 @@ def uninstall(backend: Backend) -> tuple[str, int, str]:
         cfg.installed.pop("gamify", None)
         save_config(cfg)
         return (
-            f"# Gamify uninstalled — `{rel}` was already gone; "
-            "cleared config record.\n",
+            f"# Gamify uninstalled — `{rel}` was already gone; " "cleared config record.\n",
             0,
             "",
         )

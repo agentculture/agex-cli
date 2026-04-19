@@ -10,7 +10,6 @@ from agent_experience.core.backend import Backend
 from agent_experience.core.paths import ensure_init
 from agent_experience.core.render import render_string
 
-
 _PROBES = {
     Backend.CLAUDE_CODE: claude_code_probe,
     Backend.CODEX: codex_probe,

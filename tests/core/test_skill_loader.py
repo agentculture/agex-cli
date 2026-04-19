@@ -1,6 +1,6 @@
 import pytest
 
-from agent_experience.core.skill_loader import Skill, load_skill
+from agent_experience.core.skill_loader import load_skill
 
 
 def test_load_skill_parses_frontmatter_and_body(tmp_path):
@@ -39,9 +39,7 @@ def test_load_skill_missing_required_field_raises(tmp_path):
 
 def test_load_skill_accepts_crlf_frontmatter(tmp_path):
     path = tmp_path / "SKILL.md"
-    path.write_bytes(
-        b"---\r\nname: x\r\ndescription: y\r\ntype: command\r\n---\r\nbody\r\n"
-    )
+    path.write_bytes(b"---\r\nname: x\r\ndescription: y\r\ntype: command\r\n---\r\nbody\r\n")
     skill = load_skill(path)
     assert skill.name == "x"
     assert "body" in skill.body

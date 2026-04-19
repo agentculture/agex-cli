@@ -6,6 +6,7 @@ remaining tests call _main_entrypoint directly in-process to give the
 coverage tracker a chance to observe the branch execution (subprocess
 children do not propagate the parent's pytest-cov instrumentation).
 """
+
 import subprocess
 import sys
 

@@ -6,7 +6,6 @@ from agent_experience.core.hook_io import load_events
 from agent_experience.core.paths import data_dir, ensure_init
 from agent_experience.core.render import render_string
 
-
 KNOWN_STREAMS = ["post-tool-use", "user-prompt", "stop", "sessions"]
 
 

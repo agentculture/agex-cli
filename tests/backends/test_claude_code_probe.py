@@ -2,7 +2,6 @@ from pathlib import Path
 
 from agent_experience.backends.claude_code.probe import probe
 
-
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "claude-code"
 
 

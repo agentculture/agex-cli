@@ -5,7 +5,6 @@ from typer.testing import CliRunner
 
 from agent_experience.cli import app
 
-
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "claude-code"
 
 

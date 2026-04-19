@@ -33,7 +33,11 @@ def test_hook_write_drops_empty_key_pairs(tmp_path, monkeypatch):
     runner = CliRunner()
     result = runner.invoke(app, ["hook", "write", "post-tool-use", "=orphan", "tool=Read"])
     assert result.exit_code == 0
-    line = (tmp_path / ".agex" / "data" / "post-tool-use.json").read_text(encoding="utf-8").splitlines()[0]
+    line = (
+        (tmp_path / ".agex" / "data" / "post-tool-use.json")
+        .read_text(encoding="utf-8")
+        .splitlines()[0]
+    )
     payload = json_mod.loads(line)
     assert "" not in payload  # empty key dropped
     assert payload["tool"] == "Read"

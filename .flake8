@@ -1,0 +1,8 @@
+[flake8]
+# Match pyproject.toml's [tool.black] line-length (100) and skip E203
+# ("whitespace before ':'") because black's preferred slice style conflicts
+# with PEP 8 on that one rule. The combination is the documented "black +
+# flake8" compatibility settings per black's own docs.
+max-line-length = 100
+extend-ignore =
+    E203,

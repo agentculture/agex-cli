@@ -1,4 +1,5 @@
 from typer.testing import CliRunner
+
 from agent_experience import __version__
 from agent_experience.cli import app
 

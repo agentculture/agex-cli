@@ -16,7 +16,7 @@ from agent_experience.core.paths import data_dir
 # (mapped to AlreadyLocked) when two writers race for the same append lock.
 # A handful of short retries is sufficient because the other writer releases
 # within microseconds. See https://github.com/OriNachum/agex/issues/12.
-_LOCK_MAX_ATTEMPTS = 5       # total attempts before giving up
+_LOCK_MAX_ATTEMPTS = 5  # total attempts before giving up
 _LOCK_BASE_SLEEP_SEC = 0.01  # 10ms base backoff (writes complete in microseconds)
 
 # Stream names are joined into `.agex/data/<stream>.json`, so they must be a
@@ -48,9 +48,7 @@ def _acquire_lock_with_retry(fh) -> None:
 
 def _validate_stream(stream: str) -> None:
     if not _STREAM_RE.match(stream):
-        raise ValueError(
-            f"invalid stream name {stream!r}; must match ^[a-z][a-z0-9-]*$"
-        )
+        raise ValueError(f"invalid stream name {stream!r}; must match ^[a-z][a-z0-9-]*$")
 
 
 def _stream_path(stream: str) -> Path:
@@ -86,9 +84,7 @@ def load_events(stream: str) -> list[dict[str, Any]]:
         try:
             events.append(json.loads(line))
         except json.JSONDecodeError as e:
-            warnings.warn(
-                f"{path}:{lineno}: skipping malformed JSON line: {e}", stacklevel=2
-            )
+            warnings.warn(f"{path}:{lineno}: skipping malformed JSON line: {e}", stacklevel=2)
     return events
 
 

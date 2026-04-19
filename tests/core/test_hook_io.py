@@ -1,7 +1,7 @@
-import pytest
 from concurrent.futures import ThreadPoolExecutor
 
 import portalocker
+import pytest
 from portalocker.exceptions import AlreadyLocked
 
 from agent_experience.core.hook_io import append_event, load_events, render_table
@@ -73,10 +73,12 @@ def test_concurrent_appends_no_corruption(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     ensure_init()
     with ThreadPoolExecutor(max_workers=8) as ex:
-        list(ex.map(
-            lambda i: append_event("stop", {"i": i}),
-            range(50),
-        ))
+        list(
+            ex.map(
+                lambda i: append_event("stop", {"i": i}),
+                range(50),
+            )
+        )
     events = load_events("stop")
     assert len(events) == 50
     assert sorted(e["i"] for e in events) == list(range(50))
@@ -102,6 +104,7 @@ def test_append_event_retries_on_already_locked(tmp_path, monkeypatch):
     # `random.uniform` is intentionally NOT patched — the test only asserts
     # call count and final state, so the jitter value does not matter.
     from agent_experience.core import hook_io
+
     monkeypatch.setattr(hook_io.portalocker, "lock", flaky_lock)
     # Patch out sleep so the test finishes instantly
     monkeypatch.setattr(hook_io.time, "sleep", lambda _: None)
