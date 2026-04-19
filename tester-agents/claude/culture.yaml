@@ -1,0 +1,3 @@
+nick: agex-tester-claude
+backend: claude
+description: agex dogfooding agent for Claude Code runtime.

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] — 2026-04-19
+
+### Added
+- **`tester-agents/claude/`** — culture-meshed dogfooding workspace
+  that exercises every `agex` command end-to-end from a Claude Code
+  runtime. Ships `CLAUDE.md` (persona + ordered test plan),
+  `culture.yaml` (mesh config), `.claude/settings.json` (allows
+  `Bash(agex:*)`), and a `README.md` with registration instructions.
+- **Symlink** `tester-agents/claude/.claude/skills →
+  ../../../src/agent_experience/commands` so the tester invokes the
+  same `SKILL.md` files the CLI ships — no stale-copy drift. Git
+  stores mode `120000`; on Windows clones, directory symlinks need
+  Developer Mode or an elevated shell with `core.symlinks=true` (per
+  the spec's known platform limitation, documented in the workspace
+  README).
+
 ## [0.8.0] — 2026-04-19
 
 ### Added
