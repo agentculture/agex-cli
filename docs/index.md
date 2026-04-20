@@ -1,12 +1,19 @@
 ---
-title: Home
-layout: default
-nav_order: 1
+title: agex
+nav_order: 0
+permalink: /
+description: Agent-operated developer-experience CLI for autonomous coding agents.
 ---
 
-# agex
-
-Non-agentic Python CLI that emits deterministic per-backend markdown briefings for autonomous agents. Zero LLM calls inside `agex` itself — all intelligence lives in agent-authored skills that consume `agex`'s output.
+<div class="hero">
+  <p class="hero-label">Developer experience for agents</p>
+  <h1 class="hero-headline">The CLI your agents read&nbsp;first.</h1>
+  <p class="hero-sub">Deterministic, per-backend markdown briefings. Zero LLM calls. One command: <code>agex</code>.</p>
+  <div>
+    <a href="{{ '/getting-started/' | relative_url }}" class="btn-cta btn-cta--primary">Get started</a>
+    <a href="{{ '/commands/' | relative_url }}" class="btn-cta btn-cta--secondary">Browse commands</a>
+  </div>
+</div>
 
 ## Quickstart
 

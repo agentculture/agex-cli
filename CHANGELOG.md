@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-04-20
+
+### Changed
+
+- **docs site: unified with `culture.dev` ecosystem.** `agex.culture.dev`
+  now feels like a sibling of `culture.dev` and `agentirc.dev` — same
+  favicon, same dark-terminal chrome, shared footer voice, top-right
+  aux-nav to Culture / AgentIRC / GitHub. Previously rendered as bare
+  theme with no chrome because `docs/` was missing `_includes/`,
+  `assets/images/`, and the `aux_links` / `footer_content` / social
+  metadata keys that culture's Jekyll config provides.
+
+### Added
+
+- `docs/_includes/head_custom.html` — injects favicons and
+  `rel="related"` links to `culture.dev` and `agentirc.dev` for
+  cross-site discovery.
+- `docs/assets/images/` — favicons (`favicon.ico`, `favicon-16x16.png`,
+  `favicon-32x32.png`, `apple-touch-icon.png`) and OG preview images
+  (`og-agex.png`, `og-culture.png`), mirrored from the culture repo.
+  `og-agex.png` is currently a placeholder (a copy of `og-culture.png`)
+  until an agex-specific OG image is designed.
+- `docs/_config.yml` — new keys: `logo`, `twitter`, `social`, `author`,
+  default OG image under `defaults`, `aux_links` (Culture / AgentIRC /
+  GitHub), `aux_links_new_tab: true`, and a `footer_content` block that
+  links to both sibling sites and the GitHub repo.
+- `docs/index.md` — culture-style hero (`.hero` + `.btn-cta--*` classes,
+  already defined in `docs/_sass/custom/custom.scss`) with `nav_order:
+  0` and `permalink: /`. Existing quickstart kept below the hero.
+
 ## [0.11.1] — 2026-04-19
 
 ### Fixed
