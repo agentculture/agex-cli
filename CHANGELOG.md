@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-04-21
+
+### Changed
+
+- **Docs site now canonically served at `https://culture.dev/agex/`**
+  (was `https://agex.culture.dev/`). Path-based hosting under the
+  shared origin eliminates cross-origin white flash and the transient
+  403s caused by Cloudflare's cross-subdomain bot heuristic — both
+  issues reported during 0.12.x rollout. Same-origin navigation also
+  lets the Culture aux-nav link transition with zero handshake latency.
+- `docs/_config.yml`: `url` → `https://culture.dev`, `baseurl` →
+  `/agex`. Jekyll `relative_url` / `absolute_url` filters (already
+  used throughout the site) regenerate all internal links under the
+  `/agex/` prefix automatically.
+- `docs/_includes/head_custom.html`: dropped **all** preconnect /
+  dns-prefetch hints — both `https://culture.dev` (self-origin) and
+  `https://agentirc.dev` (also moving to `https://culture.dev/agentirc`
+  in a paired follow-up on the culture repo, becoming self-origin
+  too). Kept the inline critical CSS dark-paint from 0.12.1.
+- `docs/_config.yml`: `AgentIRC` aux-link + `footer_content` link now
+  point at `https://culture.dev/agentirc` so the nav stays correct
+  after the agentirc migration lands. Same-origin = same tab = no
+  handshake = no flash.
+- `docs/_includes/head_custom.html`: `<link rel="related">` for
+  AgentIRC retargeted from `https://agentirc.dev` to
+  `https://culture.dev/agentirc` for the same reason.
+
+### Hosting topology (external to this repo)
+
+The Cloudflare Pages project `agex` continues to deploy as before, but
+is now proxied under `culture.dev/agex/*` by a Worker on the culture
+zone (landing in a follow-up PR on `OriNachum/culture`). The legacy
+`https://agex.culture.dev/` hostname is 301-redirected to
+`https://culture.dev/agex/` via a Cloudflare Redirect Rule, preserving
+SEO and existing bookmarks. Do **not** merge this PR until both the
+Worker route and the redirect rule are live in Cloudflare — otherwise
+`agex.culture.dev` will serve HTML with broken `/agex/...` internal
+links for the switchover window.
+
 ## [0.12.3] — 2026-04-21
 
 ### Fixed

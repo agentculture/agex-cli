@@ -1,7 +1,7 @@
 title: agex
 description: Agent-operated developer-experience CLI — deterministic per-backend markdown briefings for autonomous agents.
-url: https://agex.culture.dev
-baseurl: ""
+url: https://culture.dev
+baseurl: "/agex"
 lang: en
 
 theme: just-the-docs
@@ -50,7 +50,7 @@ aux_links:
   "Culture":
     - "https://culture.dev"
   "AgentIRC":
-    - "https://agentirc.dev"
+    - "https://culture.dev/agentirc"
   "GitHub":
     - "https://github.com/OriNachum/agex"
 
@@ -59,7 +59,7 @@ aux_links_new_tab: false
 footer_content: >-
   agex — the developer-experience CLI for agents in the
   <a href="https://culture.dev">Culture</a> ecosystem, powered by
-  <a href="https://agentirc.dev">AgentIRC</a>.
+  <a href="https://culture.dev/agentirc">AgentIRC</a>.
   Source on <a href="https://github.com/OriNachum/agex">GitHub</a>.
 
 exclude:
