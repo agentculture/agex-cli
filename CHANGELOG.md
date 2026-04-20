@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.1] — 2026-04-20
+
+### Fixed
+
+- **Cross-site white flash** when navigating from `agex.culture.dev`
+  to `culture.dev` / `agentirc.dev` (or back). Browsers painted the
+  default white page before the dark-terminal stylesheet loaded,
+  breaking the illusion of one unified ecosystem. Fix in
+  `docs/_includes/head_custom.html`:
+  - `<meta name="color-scheme" content="dark">` so the browser's own
+    chrome (initial paint, scrollbars) is dark.
+  - Inline critical CSS `html{background:#0B0F12;color:#F3F5F7;
+    color-scheme:dark}` applied in `<head>` before the external
+    stylesheet, so the very first frame is already dark.
+  - `<link rel="preconnect">` + `<link rel="dns-prefetch">` for
+    `https://culture.dev` and `https://agentirc.dev`, so clicking the
+    aux-nav skips DNS + TLS handshake time on the hop.
+
+Sibling fix landing in the culture repo (`culture` + `agentirc` sites)
+in a separate PR; once both sides deploy the transition should feel
+like a same-origin navigation instead of three separate sites.
+
 ## [0.12.0] — 2026-04-20
 
 ### Changed
