@@ -54,7 +54,7 @@ aux_links:
   "GitHub":
     - "https://github.com/OriNachum/agex"
 
-aux_links_new_tab: true
+aux_links_new_tab: false
 
 footer_content: >-
   agex — the developer-experience CLI for agents in the

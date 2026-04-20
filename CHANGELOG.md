@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.2] — 2026-04-20
+
+### Fixed
+
+- **Sibling-site aux-nav links open in a new tab**, defeating the
+  white-flash fix from 0.12.1. A fresh tab has none of the preconnect
+  hints, none of the warmed TLS connection, and no shared visual
+  state — so clicking "Culture" or "AgentIRC" from agex.culture.dev
+  still felt like leaving the site. Flipped `aux_links_new_tab` from
+  `true` to `false` in `docs/_config.yml` so the Culture / AgentIRC /
+  GitHub links navigate in-tab. Users who prefer a new tab can still
+  Ctrl/Cmd-click.
+
 ## [0.12.1] — 2026-04-20
 
 ### Fixed
