@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] — 2026-04-21
+
+### Fixed
+
+- **Stale canonical URL in PyPI metadata and README.** Follow-up to
+  0.13.0 flagged by Copilot and Qodo on PR #26: the docs site moved
+  to `https://culture.dev/agex/` but `project.urls.Homepage` in
+  `pyproject.toml` still pointed at `https://agex.culture.dev`, and
+  the `Docs` link in `README.md` still read
+  `[agex.culture.dev](https://agex.culture.dev) (coming soon)`. Both
+  user-facing entrypoints now match the Jekyll `url + baseurl`
+  canonical — PyPI package page, README docs link, jekyll-seo-tag
+  `<link rel="canonical">`, OG URL, and schema.org `url` all agree
+  on `https://culture.dev/agex/`.
+
 ## [0.13.0] — 2026-04-21
 
 ### Changed

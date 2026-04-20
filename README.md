@@ -20,7 +20,7 @@ agex learn --agent claude-code
 
 ## Docs
 
-[agex.culture.dev](https://agex.culture.dev) (coming soon).
+[culture.dev/agex](https://culture.dev/agex/).
 
 Spec: `docs/superpowers/specs/2026-04-18-agex-design.md`.
 
