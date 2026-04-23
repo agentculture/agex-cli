@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.2] — 2026-04-23
+
+### Changed
+
+- **Repo URL: `OriNachum/agex` → `agentculture/agex-cli`.** Updated all
+  live-code references — `pyproject.toml` project URLs, `ISSUE_URL` in
+  `capabilities.py`, issue comment in `hook_io.py`, `agex explain agex`
+  topic, gamify unsupported notice, `CLAUDE.md`, docs site config
+  (`_config.yml`, `index.md`), and the docs CI workflow comment.
+  Historical documents (spec, implementation plan, earlier changelog
+  entries) are left as-is.
+
 ## [0.13.1] — 2026-04-21
 
 ### Fixed

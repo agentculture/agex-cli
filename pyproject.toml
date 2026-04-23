@@ -1,6 +1,6 @@
 [project]
 name = "agex-cli"
-version = "0.13.1"
+version = "0.13.2"
 description = "Agent-operated developer-experience CLI — deterministic per-backend markdown briefings for autonomous agents."
 authors = [{name = "Ori Nachum"}]
 license = {text = "MIT"}
@@ -31,8 +31,8 @@ agex = "agent_experience.cli:_main_entrypoint"
 
 [project.urls]
 Homepage = "https://culture.dev/agex/"
-Repository = "https://github.com/OriNachum/agex"
-Issues = "https://github.com/OriNachum/agex/issues"
+Repository = "https://github.com/agentculture/agex-cli"
+Issues = "https://github.com/agentculture/agex-cli/issues"
 
 [build-system]
 requires = ["hatchling"]

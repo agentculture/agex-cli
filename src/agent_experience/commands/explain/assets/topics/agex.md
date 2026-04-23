@@ -32,4 +32,4 @@ agex overview --agent claude-code  # what's in this project?
 
 ## Repo
 
-<https://github.com/OriNachum/agex>
+<https://github.com/agentculture/agex-cli>

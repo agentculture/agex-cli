@@ -23,7 +23,7 @@ agex explain agex              # self-describing page
 agex overview --agent claude-code
 ```
 
-- **Repo:** <https://github.com/OriNachum/agex>
+- **Repo:** <https://github.com/agentculture/agex-cli>
 - **PyPI:** <https://pypi.org/project/agex-cli/>
 
 See [Getting started](getting-started.md) for a walkthrough.

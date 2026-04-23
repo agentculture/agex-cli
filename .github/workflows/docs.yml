@@ -29,7 +29,7 @@ jobs:
     # masks them for security), so the deploy step would fail. Skip the
     # whole job for fork PRs and let reviewers rely on local `bundle exec
     # jekyll serve`. This repo is single-owner today, so in practice
-    # every PR comes from a branch within OriNachum/agex and hits the
+    # every PR comes from a branch within agentculture/agex-cli and hits the
     # fast path.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
