@@ -40,10 +40,10 @@ def _all_skill_md_relpaths() -> list[str]:
 
 
 def test_meta_test_discovers_all_known_skills() -> None:
-    """Verify that at least 9 SKILL.md files are found (5 commands + 4 lessons)."""
+    """Verify that at least 10 SKILL.md files are found (6 commands + 4 lessons)."""
     relpaths = _all_skill_md_relpaths()
-    assert len(relpaths) >= 9, (
-        f"Expected >= 9 SKILL.md files under agent_experience.commands, "
+    assert len(relpaths) >= 10, (
+        f"Expected >= 10 SKILL.md files under agent_experience.commands, "
         f"found {len(relpaths)}: {relpaths}"
     )
 
@@ -72,9 +72,9 @@ def test_skill_md_has_valid_frontmatter(relpath: str) -> None:
 
 
 def test_every_command_has_skill_md() -> None:
-    """Each of the five top-level commands must ship a SKILL.md."""
+    """Each of the six top-level commands must ship a SKILL.md."""
     with as_file(files("agent_experience.commands")) as commands_root:
-        for cmd in ("explain", "overview", "learn", "gamify", "hook"):
+        for cmd in ("explain", "overview", "learn", "gamify", "hook", "doctor"):
             assert (
                 commands_root / cmd / "SKILL.md"
             ).is_file(), f"{cmd}/SKILL.md is missing from agent_experience.commands"

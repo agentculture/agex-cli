@@ -13,12 +13,14 @@
 | `agex gamify --uninstall --agent X` | Reverse `gamify`. |
 | `agex hook write <event> [...]` | Append a tracking event. Called by installed hooks. |
 | `agex hook read --agent X` | Show tracked events as markdown + source path. |
+| `agex doctor` | Diagnose agex install + repo setup. |
 | `agex explain <topic>` | You're reading this. |
 
 ## First steps
 
 ```bash
 agex explain agex              # this page
+agex doctor                    # is the install + repo healthy?
 agex learn --agent claude-code  # what can I learn for my backend?
 agex overview --agent claude-code  # what's in this project?
 ```

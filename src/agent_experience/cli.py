@@ -4,6 +4,7 @@ from typing import Any, Optional
 import typer
 
 from agent_experience import __version__
+from agent_experience.commands.doctor.scripts import doctor as doctor_script
 from agent_experience.commands.explain.scripts import explain as explain_script
 from agent_experience.commands.gamify.scripts import install as gamify_script
 from agent_experience.commands.hook.scripts import read as hook_read_script
@@ -41,6 +42,21 @@ def main(
 @app.command("explain")
 def explain(topic: str = typer.Argument(..., help="Topic to explain.")) -> None:
     stdout, exit_code, stderr = explain_script.run(topic)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@app.command("doctor")
+def doctor(
+    role: Optional[str] = typer.Option(
+        None, "--role", help="Render a role-specific check section (e.g., pr-review)."
+    ),
+) -> None:
+    stdout, exit_code, stderr = doctor_script.run(role)
     if stdout:
         typer.echo(stdout, nl=False)
     if stderr:
@@ -149,7 +165,7 @@ def overview(agent: str = _agent_option()) -> None:
 # Keep in sync with the @app.command / app.add_typer registrations above.
 # If a new top-level command is added, extend this set so _main_entrypoint
 # stops routing it to the unknown-command fallback page.
-_KNOWN_COMMANDS = {"explain", "overview", "learn", "gamify", "hook"}
+_KNOWN_COMMANDS = {"explain", "overview", "learn", "gamify", "hook", "doctor"}
 
 
 def _main_entrypoint() -> None:

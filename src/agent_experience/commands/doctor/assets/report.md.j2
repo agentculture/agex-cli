@@ -1,0 +1,39 @@
+{% set icon = {"ok": "✓", "warn": "⚠️", "fail": "✗", "info": "·"} -%}
+# agex doctor
+
+**agex:** `{{ version }}`
+**Project:** `{{ project_dir }}`
+
+{% for cat in categories %}
+## {{ cat.title }}
+
+{% for r in cat.results -%}
+- {{ icon[r.status] }} **{{ r.name }}** — {{ r.detail }}
+{% endfor %}
+{% endfor -%}
+
+## Operator verification
+
+These cannot be checked automatically — confirm by hand:
+
+{% for item in operator_checklist -%}
+- [ ] {{ item }}
+{% endfor %}
+{% if role_section %}
+## Role: `{{ role }}`
+
+{{ role_section }}
+{% endif %}
+## Summary
+
+| status | count |
+|---|---|
+| ✓ ok | {{ summary.ok }} |
+| ⚠️ warn | {{ summary.warn }} |
+| ✗ fail | {{ summary.fail }} |
+| · info | {{ summary.info }} |
+{% if summary.fail == 0 %}
+No hard failures. Exit `0`.
+{% else %}
+{{ summary.fail }} hard failure(s) — exit `1`. Address `✗` rows above.
+{% endif %}

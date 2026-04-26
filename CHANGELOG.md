@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-04-26
+
+### Added
+
+- **`agex doctor` command.** Zero-argument health check that emits a
+  deterministic markdown report covering install (`agex` version, Python
+  version, package resources), project state (`.agex/` directory,
+  `config.toml`, `.gitignore`, `data/` writability), and internal
+  consistency (every shipped `SKILL.md` parses, every per-backend
+  capability YAML loads). Exit `0` on green/warnings, `1` on hard
+  failure, `2` on usage error. Strictly read-only — never initializes
+  `.agex/`. Optional `--role <slug>` flag renders an extra
+  role-specific section from `commands/doctor/assets/roles/<slug>.md.j2`
+  (extension hook; no role files ship in this release). Adds the
+  command to `agex explain agex`, the `_KNOWN_COMMANDS` registry, and
+  the SKILL.md meta-tests. New addendum spec at
+  `docs/superpowers/specs/2026-04-26-agex-doctor.md`.
+
 ## [0.13.2] — 2026-04-23
 
 ### Changed
