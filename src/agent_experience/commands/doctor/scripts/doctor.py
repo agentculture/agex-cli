@@ -364,7 +364,7 @@ def run(role: str | None = None) -> tuple[str, int, str]:
 
     try:
         template_text = _doctor_assets().joinpath("report.md.j2").read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError, FileNotFoundError) as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         return (
             "",
             1,
