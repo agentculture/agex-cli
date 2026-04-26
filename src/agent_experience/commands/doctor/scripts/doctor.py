@@ -92,16 +92,23 @@ def _check_python() -> CheckResult:
 
 
 def _check_resources() -> CheckResult:
+    # Probe assets that doctor itself depends on at runtime, plus a sentinel
+    # from a sibling command — broken packaging surfaces here rather than
+    # later when a render call raises.
+    required = [
+        ("explain", "assets", "topics", "agex.md"),
+        ("doctor", "assets", "report.md.j2"),
+    ]
     try:
-        # If hatch packaging is broken, this raises or returns an empty
-        # traversable. Probe a known-shipped file to be sure.
-        agex_md = _commands_root().joinpath("explain", "assets", "topics", "agex.md")
-        if not agex_md.is_file():
-            return CheckResult(
-                _NAME_PACKAGE_RESOURCES,
-                "fail",
-                "Cannot locate `commands/explain/assets/topics/agex.md`. Reinstall the package.",
-            )
+        cmds = _commands_root()
+        for parts in required:
+            if not cmds.joinpath(*parts).is_file():
+                return CheckResult(
+                    _NAME_PACKAGE_RESOURCES,
+                    "fail",
+                    f"missing shipped asset `commands/{'/'.join(parts)}`. "
+                    "Reinstall the package.",
+                )
     except Exception as exc:  # pragma: no cover - defensive only
         return CheckResult(_NAME_PACKAGE_RESOURCES, "fail", f"resource lookup raised: {exc}")
     return CheckResult(_NAME_PACKAGE_RESOURCES, "ok", "all shipped assets reachable")
@@ -173,7 +180,14 @@ def _check_gitignore() -> CheckResult:
             "warn",
             "missing — `data/` may end up tracked. Re-run any agex command to restore.",
         )
-    actual = gi.read_text(encoding="utf-8")
+    try:
+        actual = gi.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        return CheckResult(
+            _NAME_GITIGNORE,
+            "fail",
+            f"could not read `{gi}`: {exc}. Check permissions and encoding.",
+        )
     if actual != GITIGNORE_CONTENT:
         return CheckResult(
             _NAME_GITIGNORE,
@@ -256,10 +270,12 @@ def _check_capability_yaml() -> CheckResult:
             f"{len(failures)} of {count} failed: {'; '.join(failures)}",
         )
     if count == 0:
+        # `overview` already ships per-backend YAMLs, so finding zero at
+        # runtime indicates a broken wheel rather than expected state.
         return CheckResult(
             _NAME_CAPABILITY_YAML,
-            "info",
-            "no per-backend YAML files found (expected once `overview` ships).",
+            "fail",
+            "no per-backend YAML files found — package data is missing. Reinstall.",
         )
     return CheckResult(_NAME_CAPABILITY_YAML, "ok", f"{count} files parse cleanly")
 
@@ -331,12 +347,30 @@ def run(role: str | None = None) -> tuple[str, int, str]:
         trav = _resolve_role(role)
         if trav is None:
             return ("", 2, f"agex: error: unknown role '{role}'")
-        role_section = trav.read_text(encoding="utf-8")
+        try:
+            role_text = trav.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            return ("", 1, f"agex: error: could not read role asset for '{role}': {exc}")
+        # Role assets are Jinja templates per the addendum spec; v0.1 passes
+        # an empty context but rendering still resolves any `{% raw %}` /
+        # `{{ }}` markup the role file may use, rather than dumping it raw.
+        try:
+            role_section = render_string(role_text, {})
+        except Exception as exc:
+            return ("", 1, f"agex: error: failed to render role '{role}': {exc}")
 
     categories = _build_categories()
     summary = _summarize(categories)
 
-    template_text = _doctor_assets().joinpath("report.md.j2").read_text(encoding="utf-8")
+    try:
+        template_text = _doctor_assets().joinpath("report.md.j2").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError, FileNotFoundError) as exc:
+        return (
+            "",
+            1,
+            f"agex: error: could not read `doctor/assets/report.md.j2`: {exc}. "
+            "Reinstall the package.",
+        )
     out = render_string(
         template_text,
         {
