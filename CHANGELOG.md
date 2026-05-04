@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-05-04
+
+### Added
+
+- **Dual PyPI publish: `agex-cli` and `agent-devex`.** The same wheel is
+  now published under two distribution names so users can
+  `pip install agex-cli` (canonical) or `pip install agent-devex`
+  (alias). Both ship the identical CLI (`agex`) and module
+  (`agent_experience`); installing both at once will conflict on the
+  `agex` script (intended alias semantics). `publish.yml` matrixes
+  `build`, `publish-pr-testpypi`, `publish-testpypi`, and `publish-pypi`
+  across the two dist names by rewriting `[project].name` in
+  `pyproject.toml` before `python -m build`; `autotag` and
+  `github-release` remain single-runs (one tag, one release per
+  version).
+
+### Changed
+
+- **Runtime version lookup tolerates either distribution name.**
+  `agent_experience.__version__` now resolves whether the package is
+  installed as `agex-cli` or `agent-devex`, falling back to the PEP 440
+  local-version sentinel `0.0.0+unknown` only in unusual installs (e.g.
+  source checkouts that weren't `pip install -e`'d). `agex doctor`'s
+  install hint mentions both names.
+
 ## [0.14.0] — 2026-04-26
 
 ### Added
