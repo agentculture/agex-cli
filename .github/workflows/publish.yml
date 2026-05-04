@@ -61,15 +61,24 @@ on:
 
 jobs:
   # --------------------------------------------------------------------------
-  # Shared build job for the main-push path. Produces a single `dist`
-  # artifact consumed by publish-testpypi (canary) and publish-pypi (real
-  # release, inline after autotag). Skipped on pull_request -- the PR path
-  # has its own build inside `publish-pr-testpypi` because it needs to
-  # rewrite the version before building.
+  # Shared build job for the main-push path. Produces one `dist-<dist_name>`
+  # artifact per matrix entry, consumed by publish-testpypi (canary) and
+  # publish-pypi (real release, inline after autotag). Skipped on
+  # pull_request -- the PR path has its own build inside `publish-pr-testpypi`
+  # because it needs to rewrite the version before building.
+  #
+  # The matrix exists so we can publish the same code under two PyPI
+  # distribution names: `agex-cli` (canonical) and `agent-devex` (alias).
+  # Each leg rewrites `[project].name` in pyproject.toml before building so
+  # each wheel is uploaded under its own Trusted Publishing project.
   # --------------------------------------------------------------------------
   build:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dist_name: [agex-cli, agent-devex]
     permissions:
       contents: read   # actions/checkout
     steps:
@@ -79,16 +88,43 @@ jobs:
         with:
           python-version: "3.11"
 
+      - run: uv venv
+      - run: uv pip install build
+
+      # Rewrite `[project].name` to the matrix dist name. For `agex-cli`
+      # (the canonical dist) the regex still has to match so we re-emit
+      # the line; for `agent-devex` it produces an alias dist with
+      # identical contents. The post-rewrite re-parse is a fail-closed
+      # check: if a future formatting change breaks the regex match (or
+      # `[project].name` ends up wrong for any reason), the job aborts
+      # before uploading mis-named artifacts.
+      - name: Set dist name
+        env:
+          DIST_NAME: ${{ matrix.dist_name }}
+        run: |
+          set -e
+          uv run python -c "
+          import os, re, tomllib
+          dist = os.environ['DIST_NAME']
+          assert re.fullmatch(r'[a-z][a-z0-9-]*', dist), dist
+          data = open('pyproject.toml').read()
+          parsed = tomllib.loads(data)['project']
+          out, n = re.subn(r'(?m)^name = .+', f'name = \"{dist}\"', data, count=1)
+          assert n == 1, f'expected one [project].name match, got {n}'
+          rewritten = tomllib.loads(out)['project']['name']
+          assert rewritten == dist, f'rewrite produced name={rewritten!r}, expected {dist!r}'
+          open('pyproject.toml', 'w').write(out)
+          print(f'Building dist {dist} version {parsed[\"version\"]}')
+          "
+
       # Build sdist + wheel via PEP 517. `build` is the canonical frontend;
       # we avoid pulling in full dev extras here since the build backend
       # (hatchling) reads everything it needs from pyproject.toml.
-      - run: uv venv
-      - run: uv pip install build
       - run: uv run python -m build
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
-          name: dist
+          name: dist-${{ matrix.dist_name }}
           path: dist/
 
   # --------------------------------------------------------------------------
@@ -104,10 +140,17 @@ jobs:
     # supply-chain hazard (exfiltrating TestPyPI credentials, pushing a
     # malicious preview under the agex-cli name, etc.). Skip cleanly for
     # forks; internal PRs take the fast path.
+    #
+    # Matrixed across both distribution names so each PR gets a per-package
+    # TestPyPI preview (and a per-package sticky install-command comment).
     if: >-
       github.event_name == 'pull_request'
       && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dist_name: [agex-cli, agent-devex]
     environment: testpypi
     permissions:
       id-token: write        # OIDC -- Trusted Publishing
@@ -121,6 +164,27 @@ jobs:
           python-version: "3.11"
       - run: uv venv
       - run: uv pip install build
+
+      # Rewrite `[project].name` to the matrix dist name. Same fail-closed
+      # check as the build job: re-parse the result and confirm
+      # `[project].name` matches DIST_NAME before continuing.
+      - name: Set dist name
+        env:
+          DIST_NAME: ${{ matrix.dist_name }}
+        run: |
+          set -e
+          uv run python -c "
+          import os, re, tomllib
+          dist = os.environ['DIST_NAME']
+          assert re.fullmatch(r'[a-z][a-z0-9-]*', dist), dist
+          data = open('pyproject.toml').read()
+          out, n = re.subn(r'(?m)^name = .+', f'name = \"{dist}\"', data, count=1)
+          assert n == 1, f'expected one [project].name match, got {n}'
+          rewritten = tomllib.loads(out)['project']['name']
+          assert rewritten == dist, f'rewrite produced name={rewritten!r}, expected {dist!r}'
+          open('pyproject.toml', 'w').write(out)
+          print(f'Dist name set to {dist}')
+          "
 
       # Rewrite `[project].version` from `X.Y.Z` to `X.Y.Z.devN` where
       # N = github.run_number (monotonic across the workflow's lifetime).
@@ -151,7 +215,7 @@ jobs:
           print(dev)
           ")
           echo "dev_version=${DEV_VERSION}" >> "$GITHUB_OUTPUT"
-          echo "Publishing agex-cli ${DEV_VERSION} to TestPyPI"
+          echo "Publishing ${{ matrix.dist_name }} ${DEV_VERSION} to TestPyPI"
 
       - run: uv run python -m build
 
@@ -165,9 +229,11 @@ jobs:
           skip-existing: true
 
       # Sticky PR comment with the install command. Uses an
-      # `<!-- agex-pypi-preview -->` marker to edit the existing comment on
-      # reruns (same pattern as .github/workflows/docs.yml). `--paginate
-      # --slurp` ensures the marker is found even on PRs with >30 comments
+      # `<!-- agex-pypi-preview-<dist_name> -->` marker (one sticky per
+      # matrix leg) to edit the existing comment on reruns. The
+      # per-dist marker means the two matrix legs don't race on a shared
+      # comment -- each leg is self-contained. `--paginate --slurp`
+      # ensures the marker is found even on PRs with >30 comments
       # (default gh api page size); otherwise the workflow would post a
       # duplicate comment on late-stage PRs.
       - name: Post (or update) install-command comment
@@ -176,12 +242,13 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           DEV_VERSION: ${{ steps.devver.outputs.dev_version }}
+          DIST_NAME: ${{ matrix.dist_name }}
           REPO: ${{ github.repository }}
         run: |
           set -e
-          MARKER='<!-- agex-pypi-preview -->'
-          INSTALL="pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ agex-cli==${DEV_VERSION}"
-          BODY="$MARKER"$'\n'"📦 **TestPyPI preview:** \`agex-cli==${DEV_VERSION}\`"$'\n\n'"Install this PR's wheel to try it locally:"$'\n\n'"\`\`\`bash"$'\n'"$INSTALL"$'\n'"\`\`\`"
+          MARKER="<!-- agex-pypi-preview-${DIST_NAME} -->"
+          INSTALL="pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ ${DIST_NAME}==${DEV_VERSION}"
+          BODY="$MARKER"$'\n'"📦 **TestPyPI preview:** \`${DIST_NAME}==${DEV_VERSION}\`"$'\n\n'"Install this PR's wheel to try it locally:"$'\n\n'"\`\`\`bash"$'\n'"$INSTALL"$'\n'"\`\`\`"
           # `gh api --paginate` streams one JSON array per page; `jq -s`
           # ("slurp") collects them into `[[page1], [page2], ...]`, `add`
           # flattens to a single array of all comments, then the filter
@@ -203,6 +270,10 @@ jobs:
     needs: build
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dist_name: [agex-cli, agent-devex]
     environment: testpypi
     permissions:
       id-token: write   # OIDC; no API token needed
@@ -210,7 +281,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
-          name: dist
+          name: dist-${{ matrix.dist_name }}
           path: dist/
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
         with:
@@ -298,6 +369,10 @@ jobs:
       && github.ref == 'refs/heads/main'
       && needs.autotag.outputs.tag_present == 'true'
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dist_name: [agex-cli, agent-devex]
     environment: pypi
     permissions:
       id-token: write   # OIDC; no API token needed
@@ -305,7 +380,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
-          name: dist
+          name: dist-${{ matrix.dist_name }}
           path: dist/
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b  # release/v1
         with:

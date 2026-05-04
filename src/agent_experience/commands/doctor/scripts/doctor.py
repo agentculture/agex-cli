@@ -69,12 +69,13 @@ def _doctor_assets() -> Traversable:
 
 
 def _check_version() -> CheckResult:
-    if not __version__ or __version__ == "unknown":
+    if not __version__:
         return CheckResult(
             _NAME_AGEX_VERSION,
             "fail",
             "Could not resolve `agent_experience.__version__`. Reinstall with "
-            "`uv pip install -e .[dev]` or `pipx install agex-cli`.",
+            "`uv pip install -e .[dev]`, `pipx install agex-cli`, or "
+            "`pipx install agent-devex`.",
         )
     return CheckResult(_NAME_AGEX_VERSION, "ok", __version__)
 
