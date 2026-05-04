@@ -3,7 +3,16 @@ import importlib
 import pytest
 
 
-def test_version_resolves_for_either_dist_name(monkeypatch):
+@pytest.fixture
+def reload_agent_experience():
+    """Reload `agent_experience` cleanly after a test that monkeypatched its
+    version-resolution path, so other tests in the same worker see the real
+    installed version rather than the patched one."""
+    yield
+    importlib.reload(importlib.import_module("agent_experience"))
+
+
+def test_version_resolves_for_either_dist_name(monkeypatch, reload_agent_experience):
     """`agent_experience.__version__` must resolve whether the wheel is installed
     as `agex-cli` (canonical) or `agent-devex` (alias)."""
     from importlib.metadata import PackageNotFoundError
@@ -19,34 +28,30 @@ def test_version_resolves_for_either_dist_name(monkeypatch):
 
     monkeypatch.setattr("importlib.metadata.version", fake_version)
     module = importlib.reload(importlib.import_module("agent_experience"))
-    try:
-        assert module.__version__ == "9.9.9"
-    finally:
-        # Restore the real lookup so other tests in the same worker see the
-        # actual installed version, not the monkeypatched fake.
-        monkeypatch.undo()
-        importlib.reload(importlib.import_module("agent_experience"))
+    assert module.__version__ == "9.9.9"
 
 
-def test_version_falls_back_when_no_dist_found(monkeypatch):
+def test_version_falls_back_to_pyproject_when_no_dist_found(
+    monkeypatch, reload_agent_experience
+):
     """If neither distribution is installed (rare: running from an unbuilt
-    source checkout), `__version__` falls back to a PEP 440 local-version
-    sentinel rather than raising."""
+    source checkout), `__version__` is read directly from pyproject.toml so
+    the version is still single-sourced from pyproject.toml."""
+    import tomllib
     from importlib.metadata import PackageNotFoundError
+    from pathlib import Path
+
+    pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    expected = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
 
     def always_missing(dist):
         raise PackageNotFoundError(dist)
 
     monkeypatch.setattr("importlib.metadata.version", always_missing)
     module = importlib.reload(importlib.import_module("agent_experience"))
-    try:
-        assert module.__version__ == "0.0.0+unknown"
-    finally:
-        monkeypatch.undo()
-        importlib.reload(importlib.import_module("agent_experience"))
+    assert module.__version__ == expected
 
 
-@pytest.mark.usefixtures("monkeypatch")
 def test_real_install_resolves_to_pyproject_version():
     """Smoke test: in the actual test environment, `__version__` resolves
     to the version declared in pyproject.toml (sanity check that the

@@ -92,11 +92,12 @@ jobs:
       - run: uv pip install build
 
       # Rewrite `[project].name` to the matrix dist name. For `agex-cli`
-      # (the canonical dist) this is a no-op; for `agent-devex` it produces
-      # an alias dist with identical contents. Same tomllib-parse +
-      # targeted-regex-replace pattern used for the dev-version rewrite
-      # below, to avoid accidentally rewriting a `name = ...` key that
-      # might appear in a future `[tool.*]` section.
+      # (the canonical dist) the regex still has to match so we re-emit
+      # the line; for `agent-devex` it produces an alias dist with
+      # identical contents. The post-rewrite re-parse is a fail-closed
+      # check: if a future formatting change breaks the regex match (or
+      # `[project].name` ends up wrong for any reason), the job aborts
+      # before uploading mis-named artifacts.
       - name: Set dist name
         env:
           DIST_NAME: ${{ matrix.dist_name }}
@@ -108,7 +109,10 @@ jobs:
           assert re.fullmatch(r'[a-z][a-z0-9-]*', dist), dist
           data = open('pyproject.toml').read()
           parsed = tomllib.loads(data)['project']
-          out = re.sub(r'(?m)^name = .+', f'name = \"{dist}\"', data, count=1)
+          out, n = re.subn(r'(?m)^name = .+', f'name = \"{dist}\"', data, count=1)
+          assert n == 1, f'expected one [project].name match, got {n}'
+          rewritten = tomllib.loads(out)['project']['name']
+          assert rewritten == dist, f'rewrite produced name={rewritten!r}, expected {dist!r}'
           open('pyproject.toml', 'w').write(out)
           print(f'Building dist {dist} version {parsed[\"version\"]}')
           "
@@ -161,19 +165,23 @@ jobs:
       - run: uv venv
       - run: uv pip install build
 
-      # Rewrite `[project].name` to the matrix dist name (no-op for the
-      # canonical `agex-cli` leg, alias-publish for `agent-devex`).
+      # Rewrite `[project].name` to the matrix dist name. Same fail-closed
+      # check as the build job: re-parse the result and confirm
+      # `[project].name` matches DIST_NAME before continuing.
       - name: Set dist name
         env:
           DIST_NAME: ${{ matrix.dist_name }}
         run: |
           set -e
           uv run python -c "
-          import os, re
+          import os, re, tomllib
           dist = os.environ['DIST_NAME']
           assert re.fullmatch(r'[a-z][a-z0-9-]*', dist), dist
           data = open('pyproject.toml').read()
-          out = re.sub(r'(?m)^name = .+', f'name = \"{dist}\"', data, count=1)
+          out, n = re.subn(r'(?m)^name = .+', f'name = \"{dist}\"', data, count=1)
+          assert n == 1, f'expected one [project].name match, got {n}'
+          rewritten = tomllib.loads(out)['project']['name']
+          assert rewritten == dist, f'rewrite produced name={rewritten!r}, expected {dist!r}'
           open('pyproject.toml', 'w').write(out)
           print(f'Dist name set to {dist}')
           "

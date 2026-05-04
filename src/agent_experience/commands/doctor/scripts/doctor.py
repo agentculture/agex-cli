@@ -69,7 +69,7 @@ def _doctor_assets() -> Traversable:
 
 
 def _check_version() -> CheckResult:
-    if not __version__ or __version__ == "0.0.0+unknown":
+    if not __version__:
         return CheckResult(
             _NAME_AGEX_VERSION,
             "fail",
