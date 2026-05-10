@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from typing import Any, Optional
 
 import typer
@@ -11,6 +12,7 @@ from agent_experience.commands.hook.scripts import read as hook_read_script
 from agent_experience.commands.hook.scripts import write as hook_write_script
 from agent_experience.commands.learn.scripts import learn as learn_script
 from agent_experience.commands.overview.scripts import overview as overview_script
+from agent_experience.commands.pr.scripts import lint as pr_lint_script
 from agent_experience.core.backend import parse_backend
 
 app = typer.Typer(
@@ -102,6 +104,34 @@ def hook_read(agent: str = _agent_option()) -> None:
         raise typer.Exit(code=exit_code)
 
 
+pr_app = typer.Typer(name="pr", help="GitHub PR lifecycle commands.", no_args_is_help=True)
+app.add_typer(pr_app, name="pr")
+
+
+@pr_app.command("lint")
+def pr_lint(
+    agent: Optional[str] = typer.Option(
+        None, "--agent", help="Backend (claude-code|codex|copilot|acp); falls back to culture.yaml."
+    ),
+    exit_on_violation: bool = typer.Option(
+        False, "--exit-on-violation", help="Exit 1 when violations are found (CI mode)."
+    ),
+) -> None:
+    try:
+        stdout, exit_code, stderr = pr_lint_script.run(
+            agent=agent, project_dir=Path.cwd(), exit_on_violation=exit_on_violation
+        )
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
 @app.command("learn")
 def learn(
     topic: Optional[str] = typer.Argument(None, help="Lesson topic (omit for menu)."),
@@ -165,7 +195,7 @@ def overview(agent: str = _agent_option()) -> None:
 # Keep in sync with the @app.command / app.add_typer registrations above.
 # If a new top-level command is added, extend this set so _main_entrypoint
 # stops routing it to the unknown-command fallback page.
-_KNOWN_COMMANDS = {"explain", "overview", "learn", "gamify", "hook", "doctor"}
+_KNOWN_COMMANDS = {"explain", "overview", "learn", "gamify", "hook", "doctor", "pr"}
 
 
 def _main_entrypoint() -> None:
