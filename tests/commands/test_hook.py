@@ -52,6 +52,24 @@ def test_hook_read_empty_shows_no_events(tmp_path, monkeypatch):
     assert "_no events_" in result.stdout
 
 
+def test_hook_read_discovers_nested_jsonl(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from agent_experience.core.paths import ensure_init
+    from agent_experience.core import journal as core_journal
+
+    ensure_init()
+    core_journal.append_event("pr/events", {"type": "pr_opened", "pr": 42})
+
+    from agent_experience.commands.hook.scripts import read as hook_read
+    from agent_experience.core.backend import Backend
+
+    stdout, exit_code, _ = hook_read.run(backend=Backend.CLAUDE_CODE)
+    assert exit_code == 0
+    assert "pr_opened" in stdout
+    # The stream identifier somewhere in output (could be "pr/events" or "pr/events.jsonl")
+    assert "pr/events" in stdout or "pr/events.jsonl" in stdout or "pr_events" in stdout
+
+
 def test_hook_write_rejects_path_traversal(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     runner = CliRunner()
