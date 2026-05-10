@@ -13,6 +13,7 @@ class Config:
     backend: str | None = None
     installed: dict[str, dict[str, Any]] = field(default_factory=dict)
     preferences: dict[str, Any] = field(default_factory=dict)
+    pr: dict[str, Any] = field(default_factory=dict)
 
 
 def load() -> Config:
@@ -25,6 +26,7 @@ def load() -> Config:
         backend=doc.get("backend"),
         installed=dict(doc.get("installed", {})),
         preferences=dict(doc.get("preferences", {})),
+        pr=dict(doc.get("pr", {})),
     )
 
 
@@ -39,4 +41,6 @@ def save(cfg: Config) -> None:
         doc["installed"] = cfg.installed
     if cfg.preferences:
         doc["preferences"] = cfg.preferences
+    if cfg.pr:
+        doc["pr"] = cfg.pr
     path.write_text(tomlkit.dumps(doc), encoding="utf-8")
