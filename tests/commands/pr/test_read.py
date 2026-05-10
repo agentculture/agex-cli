@@ -73,3 +73,83 @@ def test_pr_read_writes_journal_event(monkeypatch, tmp_path):
     runner.invoke(app, ["pr", "read", "42", "--agent", "claude-code"])
     events = _journal.load()
     assert any(e["type"] == "pr_read" and e["pr"] == 42 for e in events)
+
+
+def test_pr_read_wait_returns_when_ready(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    state = {"calls": 0}
+
+    def comments_call(pr):
+        state["calls"] += 1
+        if state["calls"] >= 3:
+            return [
+                {
+                    "type": "inline",
+                    "id": 1,
+                    "body": "nit",
+                    "author": "qodo[bot]",
+                    "path": "x.py",
+                    "line": 1,
+                }
+            ]
+        return []
+
+    monkeypatch.setattr(
+        github,
+        "pr_view",
+        lambda x: {
+            "number": 42,
+            "state": "OPEN",
+            "title": "t",
+            "url": "",
+            "headRefName": "h",
+            "baseRefName": "main",
+        },
+    )
+    monkeypatch.setattr(github, "pr_checks", lambda pr: [])
+    monkeypatch.setattr(github, "pr_comments", comments_call)
+    monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: None)
+    monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: [])
+    monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
+
+    # Speed up the loop's sleep.
+    from agent_experience.commands.pr.scripts import read as read_script
+
+    monkeypatch.setattr(read_script.time, "sleep", lambda s: None)
+
+    result = runner.invoke(app, ["pr", "read", "42", "--wait", "180", "--agent", "claude-code"])
+    assert result.exit_code == 0
+    assert "qodo" in result.stdout
+    events = _journal.load()
+    assert any(e["type"] == "readiness_arrived" for e in events)
+
+
+def test_pr_read_wait_timeout_renders_still_waiting(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        github,
+        "pr_view",
+        lambda x: {
+            "number": 42,
+            "state": "OPEN",
+            "title": "t",
+            "url": "",
+            "headRefName": "h",
+            "baseRefName": "main",
+        },
+    )
+    monkeypatch.setattr(github, "pr_checks", lambda pr: [])
+    monkeypatch.setattr(github, "pr_comments", lambda pr: [])  # never ready
+    monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: None)
+    monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: [])
+    monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
+    from agent_experience.commands.pr.scripts import read as read_script
+
+    monkeypatch.setattr(read_script.time, "sleep", lambda s: None)
+
+    # --wait 1 with a short interval: one tick, then timeout.
+    result = runner.invoke(app, ["pr", "read", "42", "--wait", "1", "--agent", "claude-code"])
+    assert result.exit_code == 0
+    assert "Still waiting" in result.stdout
+    assert "Rerun `agex pr read 42 --wait 180`" in result.stdout
