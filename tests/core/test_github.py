@@ -54,7 +54,9 @@ def test_resolve_nick_falls_back_to_repo_basename(tmp_path):
 def test_resolve_nick_culture_yaml_without_suffix(tmp_path):
     project = tmp_path / "agex-cli"
     project.mkdir()
-    (project / "culture.yaml").write_text(yaml.safe_dump({"agents": [{"name": "a"}]}), encoding="utf-8")
+    (project / "culture.yaml").write_text(
+        yaml.safe_dump({"agents": [{"name": "a"}]}), encoding="utf-8"
+    )
     assert github.resolve_nick(project) == "agex-cli"
 
 
