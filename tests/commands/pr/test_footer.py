@@ -1,0 +1,31 @@
+import pytest
+
+from agent_experience.commands.pr.scripts._footer import render_footer
+from agent_experience.core.backend import Backend
+
+
+def test_lint_clean_for_claude_code():
+    out = render_footer("lint_clean", Backend.CLAUDE_CODE, {})
+    assert "Next step" in out
+    assert "agex pr open" in out
+
+
+def test_lint_violations_includes_count():
+    out = render_footer("lint_violations", Backend.CLAUDE_CODE, {"violation_count": 3})
+    assert "3 violation" in out
+    assert "agex pr lint" in out
+
+
+def test_read_wait_recommendation_uses_schedule_for_claude_code():
+    out = render_footer("open_recommend_read", Backend.CLAUDE_CODE, {"pr": 42})
+    assert "agex pr read 42 --wait 180" in out
+
+
+def test_read_wait_recommendation_plain_for_codex():
+    out = render_footer("open_recommend_read", Backend.CODEX, {"pr": 42})
+    assert "agex pr read 42 --wait 180" in out
+
+
+def test_unknown_rule_key_raises():
+    with pytest.raises(KeyError):
+        render_footer("nonexistent_rule", Backend.CLAUDE_CODE, {})
