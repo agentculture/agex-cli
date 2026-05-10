@@ -82,3 +82,65 @@ def pr_view(pr_or_branch: str | None) -> dict[str, Any] | None:
             return None
         raise
     return json.loads(stdout)
+
+
+def _repo_slug() -> str:
+    """Return 'owner/repo' from `gh repo view --json owner,name`."""
+    out = _run_gh(["repo", "view", "--json", "owner,name"])
+    data = json.loads(out)
+    return f"{data['owner']['login']}/{data['name']}"
+
+
+def pr_checks(pr: int) -> list[dict[str, Any]]:
+    out = _run_gh(["pr", "checks", str(pr), "--json", "name,status,conclusion,link"])
+    return json.loads(out)
+
+
+def pr_comments(pr: int) -> list[dict[str, Any]]:
+    """Aggregate inline review comments, top-level issue comments, and review
+    summaries into a single list of normalised {type, body, author, ...} dicts.
+    """
+    slug = _repo_slug()
+    inline_raw = json.loads(_run_gh(["api", f"repos/{slug}/pulls/{pr}/comments"]))
+    issue_raw = json.loads(_run_gh(["api", f"repos/{slug}/issues/{pr}/comments"]))
+    reviews_raw = json.loads(_run_gh(["api", f"repos/{slug}/pulls/{pr}/reviews"]))
+
+    out: list[dict[str, Any]] = []
+    for c in inline_raw:
+        out.append(
+            {
+                "type": "inline",
+                "id": c["id"],
+                "body": c["body"],
+                "author": c.get("user", {}).get("login", ""),
+                "path": c.get("path"),
+                "line": c.get("line"),
+                "in_reply_to": c.get("in_reply_to_id"),
+                "review_id": c.get("pull_request_review_id"),
+                "created_at": c.get("created_at"),
+            }
+        )
+    for c in issue_raw:
+        out.append(
+            {
+                "type": "top-level",
+                "id": c["id"],
+                "body": c["body"],
+                "author": c.get("user", {}).get("login", ""),
+                "created_at": c.get("created_at"),
+            }
+        )
+    for r in reviews_raw:
+        if not r.get("body"):
+            continue  # skip empty review summaries
+        out.append(
+            {
+                "type": "review",
+                "id": r["id"],
+                "body": r["body"],
+                "author": r.get("user", {}).get("login", ""),
+                "state": r.get("state"),
+                "created_at": r.get("submitted_at"),
+            }
+        )
+    return out

@@ -1,4 +1,6 @@
+import json
 import subprocess
+from pathlib import Path
 
 import pytest
 import yaml
@@ -101,3 +103,48 @@ def test_pr_view_returns_none_when_no_pr_for_branch(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert github.pr_view("feat/x") is None
+
+
+def test_pr_checks_parses_json(monkeypatch):
+    fixture = (
+        Path(__file__).parent.parent / "commands" / "pr" / "fixtures" / "gh" / "pr_checks_42.json"
+    )
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted(stdout=fixture.read_text(), returncode=0),
+    )
+    checks = github.pr_checks(42)
+    assert len(checks) == 2
+    assert checks[1]["conclusion"] == "failure"
+
+
+def test_pr_comments_combines_three_sources(monkeypatch):
+    fixture = json.loads(
+        (
+            Path(__file__).parent.parent
+            / "commands"
+            / "pr"
+            / "fixtures"
+            / "gh"
+            / "pr_comments_42.json"
+        ).read_text()
+    )
+
+    def fake_run(cmd, capture_output, text, check, env=None):
+        joined = " ".join(cmd)
+        if "/pulls/42/comments" in joined:
+            return _FakeCompleted(stdout=json.dumps(fixture["inline"]), returncode=0)
+        if "/issues/42/comments" in joined:
+            return _FakeCompleted(stdout=json.dumps(fixture["issue"]), returncode=0)
+        if "/pulls/42/reviews" in joined:
+            return _FakeCompleted(stdout=json.dumps(fixture["reviews"]), returncode=0)
+        raise AssertionError(f"unexpected gh call: {cmd}")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
+
+    comments = github.pr_comments(42)
+    types = {c["type"] for c in comments}
+    assert types == {"inline", "top-level", "review"}
+    assert len(comments) == 3

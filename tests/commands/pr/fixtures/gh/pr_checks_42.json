@@ -1,0 +1,4 @@
+[
+  {"name": "test", "status": "completed", "conclusion": "success", "link": "https://github.com/x/y/runs/1"},
+  {"name": "lint", "status": "completed", "conclusion": "failure", "link": "https://github.com/x/y/runs/2"}
+]

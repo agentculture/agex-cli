@@ -1,0 +1,11 @@
+{
+  "inline": [
+    {"id": 100, "body": "nit: rename", "user": {"login": "qodo[bot]"}, "path": "src/foo.py", "line": 12, "pull_request_review_id": 5, "created_at": "2026-05-10T10:00:00Z"}
+  ],
+  "issue": [
+    {"id": 200, "body": "looks good!", "user": {"login": "alice"}, "created_at": "2026-05-10T10:05:00Z"}
+  ],
+  "reviews": [
+    {"id": 5, "body": "Reviewed.", "user": {"login": "qodo[bot]"}, "state": "COMMENTED", "submitted_at": "2026-05-10T10:00:00Z"}
+  ]
+}
