@@ -21,3 +21,22 @@ def lint_next_step(violations: list[Any], alignment_triggered: bool) -> tuple[st
 def open_next_step(pr: int, was_already_open: bool) -> tuple[str, dict[str, Any]]:
     key = "open_already_exists" if was_already_open else "open_recommend_read"
     return key, {"pr": pr}
+
+
+def read_next_step(
+    pr: int,
+    threads_unresolved: int,
+    has_recent_local_commits: bool,
+    ci_red: bool,
+) -> tuple[str, dict[str, Any]]:
+    if ci_red:
+        return "read_ci_red", {"pr": pr}
+    if threads_unresolved > 0:
+        if has_recent_local_commits:
+            return "read_unresolved_after_commits", {"pr": pr}
+        return "read_unresolved_no_commits", {"pr": pr}
+    return "read_clean", {"pr": pr}
+
+
+def read_wait_timeout_step(pr: int, reviewers: list[str]) -> tuple[str, dict[str, Any]]:
+    return "read_wait_timeout", {"pr": pr, "reviewers": ", ".join(reviewers)}

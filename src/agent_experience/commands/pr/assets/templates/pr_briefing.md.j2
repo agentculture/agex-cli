@@ -1,0 +1,53 @@
+# `agex pr read` — PR #{{ pr }}
+
+{% if pr_meta -%}
+- State: **{{ pr_meta.state }}** ({{ pr_meta.title }})
+- Branch: `{{ pr_meta.headRefName }}` → `{{ pr_meta.baseRefName }}`
+{% if pr_meta.url -%}- URL: {{ pr_meta.url }}{%- endif %}
+{%- endif %}
+
+## CI checks
+
+{% if checks -%}
+| Check | Status | Conclusion |
+|---|---|---|
+{% for c in checks -%}
+| {{ c.name }} | {{ c.status }} | {{ c.conclusion or "—" }} |
+{% endfor %}
+{%- else -%}
+_No checks reported._
+{%- endif %}
+
+## SonarCloud
+
+{% if sonar_gate -%}
+Quality gate: **{{ sonar_gate.projectStatus.status }}**
+{% if sonar_issues -%}
+{{ sonar_issues | length }} new issue(s):
+{% for i in sonar_issues -%}
+- `{{ i.severity }}`: {{ i.message }} ({{ i.component }}:{{ i.line or "—" }})
+{% endfor %}
+{%- endif %}
+{%- else -%}
+_Project not on SonarCloud (skipped)._
+{%- endif %}
+
+## Comments
+
+{% if not comments -%}
+_No comments yet._
+{%- else -%}
+{% for c in comments -%}
+- **[{{ c.type }}]** `{{ c.author }}`{% if c.path %} on `{{ c.path }}:{{ c.line }}`{% endif %}: {{ c.body | truncate(200) }}
+{% endfor %}
+{%- endif %}
+
+## Readiness
+
+{% if waiting_for -%}
+> ⚠️ Still waiting on: **{{ waiting_for | join(", ") }}**
+{%- else -%}
+All required reviewers have posted feedback.
+{%- endif %}
+
+{{ footer }}

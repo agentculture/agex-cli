@@ -14,6 +14,7 @@ from agent_experience.commands.learn.scripts import learn as learn_script
 from agent_experience.commands.overview.scripts import overview as overview_script
 from agent_experience.commands.pr.scripts import lint as pr_lint_script
 from agent_experience.commands.pr.scripts import open_ as pr_open_script
+from agent_experience.commands.pr.scripts import read as pr_read_script
 from agent_experience.core.backend import parse_backend
 
 app = typer.Typer(
@@ -155,6 +156,29 @@ def pr_open(
         typer.echo(str(exc), err=True)
         typer.echo("agex: rerun 'agex pr open ...' once network is reachable", err=True)
         raise typer.Exit(code=1)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@pr_app.command("read")
+def pr_read(
+    pr: Optional[int] = typer.Argument(None),
+    wait: Optional[int] = typer.Option(
+        None, "--wait", help="Poll for readiness up to SECS seconds."
+    ),
+    agent: Optional[str] = typer.Option(None, "--agent"),
+) -> None:
+    try:
+        stdout, exit_code, stderr = pr_read_script.run(
+            agent=agent, project_dir=Path.cwd(), pr=pr, wait=wait
+        )
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
     if stdout:
         typer.echo(stdout, nl=False)
     if stderr:
