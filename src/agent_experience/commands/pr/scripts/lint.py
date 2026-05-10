@@ -11,6 +11,7 @@ from agent_experience.commands.pr.assets.rules.lint_rules import (
     check_alignment_trigger,
     check_files,
 )
+from agent_experience.commands.pr.assets.rules.next_step_rules import lint_next_step
 from agent_experience.commands.pr.scripts._footer import render_footer
 from agent_experience.core.backend import resolve_backend
 from agent_experience.core.render import render_string
@@ -54,16 +55,7 @@ def run(agent: str | None, project_dir: Path, exit_on_violation: bool) -> tuple[
     violations: list[Violation] = check_files(file_pairs)
     alignment_triggered = check_alignment_trigger([p for p, _ in file_pairs])
 
-    if violations:
-        footer_key = "lint_violations"
-        footer_ctx = {"violation_count": len(violations)}
-    elif alignment_triggered:
-        footer_key = "lint_clean_with_alignment"
-        footer_ctx = {}
-    else:
-        footer_key = "lint_clean"
-        footer_ctx = {}
-
+    footer_key, footer_ctx = lint_next_step(violations, alignment_triggered)
     footer = render_footer(footer_key, backend, footer_ctx)
 
     template = files(_TEMPLATES_PKG).joinpath("lint_result.md.j2").read_text(encoding="utf-8")
