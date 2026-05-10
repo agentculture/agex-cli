@@ -11,7 +11,7 @@ runner = CliRunner()
 def _setup_skills_local(tmp_path: Path, siblings: list[Path]) -> None:
     (tmp_path / ".claude").mkdir(exist_ok=True)
     (tmp_path / ".claude" / "skills.local.yaml").write_text(
-        yaml.safe_dump({"sibling_projects": [str(s) for s in siblings]})
+        yaml.safe_dump({"sibling_projects": [str(s) for s in siblings]}), encoding="utf-8"
     )
 
 
@@ -19,9 +19,9 @@ def _make_sibling(root: Path, name: str, claude_md: str | None, culture: dict | 
     p = root / name
     p.mkdir()
     if claude_md is not None:
-        (p / "CLAUDE.md").write_text(claude_md)
+        (p / "CLAUDE.md").write_text(claude_md, encoding="utf-8")
     if culture is not None:
-        (p / "culture.yaml").write_text(yaml.safe_dump(culture))
+        (p / "culture.yaml").write_text(yaml.safe_dump(culture), encoding="utf-8")
     return p
 
 

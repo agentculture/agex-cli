@@ -40,7 +40,7 @@ def test_run_gh_raises_runtimeerror_on_failure(monkeypatch):
 
 def test_resolve_nick_from_culture_yaml(tmp_path):
     (tmp_path / "culture.yaml").write_text(
-        yaml.safe_dump({"agents": [{"name": "a", "suffix": "my-nick"}]})
+        yaml.safe_dump({"agents": [{"name": "a", "suffix": "my-nick"}]}), encoding="utf-8"
     )
     assert github.resolve_nick(tmp_path) == "my-nick"
 
@@ -54,7 +54,7 @@ def test_resolve_nick_falls_back_to_repo_basename(tmp_path):
 def test_resolve_nick_culture_yaml_without_suffix(tmp_path):
     project = tmp_path / "agex-cli"
     project.mkdir()
-    (project / "culture.yaml").write_text(yaml.safe_dump({"agents": [{"name": "a"}]}))
+    (project / "culture.yaml").write_text(yaml.safe_dump({"agents": [{"name": "a"}]}), encoding="utf-8")
     assert github.resolve_nick(project) == "agex-cli"
 
 
@@ -112,7 +112,7 @@ def test_pr_checks_parses_json(monkeypatch):
     monkeypatch.setattr(
         subprocess,
         "run",
-        lambda *a, **k: _FakeCompleted(stdout=fixture.read_text(), returncode=0),
+        lambda *a, **k: _FakeCompleted(stdout=fixture.read_text(encoding="utf-8"), returncode=0),
     )
     checks = github.pr_checks(42)
     # Now: 2 CheckRun + 1 StatusContext = 3 normalized rows
@@ -135,7 +135,7 @@ def test_pr_comments_combines_three_sources(monkeypatch):
             / "fixtures"
             / "gh"
             / "pr_comments_42.json"
-        ).read_text()
+        ).read_text(encoding="utf-8")
     )
 
     def fake_run(cmd, capture_output, text, check, env=None):
