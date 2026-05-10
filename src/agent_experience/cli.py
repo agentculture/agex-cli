@@ -15,6 +15,7 @@ from agent_experience.commands.overview.scripts import overview as overview_scri
 from agent_experience.commands.pr.scripts import lint as pr_lint_script
 from agent_experience.commands.pr.scripts import open_ as pr_open_script
 from agent_experience.commands.pr.scripts import read as pr_read_script
+from agent_experience.commands.pr.scripts import reply as pr_reply_script
 from agent_experience.core.backend import parse_backend
 
 app = typer.Typer(
@@ -166,6 +167,24 @@ def pr_open(
         typer.echo(stdout, nl=False)
     if stderr:
         typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@pr_app.command("reply")
+def pr_reply(
+    pr: int = typer.Argument(...),
+    agent: Optional[str] = typer.Option(None, "--agent"),
+) -> None:
+    try:
+        stdout, exit_code, stderr = pr_reply_script.run(agent=agent, project_dir=Path.cwd(), pr=pr)
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True, nl=False)
     if exit_code != 0:
         raise typer.Exit(code=exit_code)
 

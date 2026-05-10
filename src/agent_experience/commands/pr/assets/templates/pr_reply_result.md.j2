@@ -1,0 +1,15 @@
+# `agex pr reply` — PR #{{ pr }}
+
+- Replies posted: **{{ count }}**
+- Threads resolved: **{{ resolved }}**
+- Failures: **{{ failures | length }}**
+
+{% if failures -%}
+| Line | Reason | Original entry |
+|---|---|---|
+{% for f in failures -%}
+| {{ f.line }} | {{ f.reason }} | `{{ f.entry }}` |
+{% endfor %}
+{%- endif %}
+
+{{ footer }}

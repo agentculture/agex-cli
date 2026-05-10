@@ -40,3 +40,9 @@ def read_next_step(
 
 def read_wait_timeout_step(pr: int, reviewers: list[str]) -> tuple[str, dict[str, Any]]:
     return "read_wait_timeout", {"pr": pr, "reviewers": ", ".join(reviewers)}
+
+
+def reply_next_step(pr: int, failure_count: int) -> tuple[str, dict[str, Any]]:
+    if failure_count > 0:
+        return "reply_with_failures", {"pr": pr}
+    return "reply_clean", {"pr": pr}
