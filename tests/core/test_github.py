@@ -54,3 +54,50 @@ def test_resolve_nick_culture_yaml_without_suffix(tmp_path):
     project.mkdir()
     (project / "culture.yaml").write_text(yaml.safe_dump({"agents": [{"name": "a"}]}))
     assert github.resolve_nick(project) == "agex-cli"
+
+
+def test_pr_create_returns_number(monkeypatch):
+    def fake_run(cmd, capture_output, text, check, env=None):
+        return _FakeCompleted(stdout="https://github.com/owner/repo/pull/42\n", returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert github.pr_create("title", "body", draft=False) == 42
+
+
+def test_pr_create_with_draft_passes_flag(monkeypatch):
+    captured = {}
+
+    def fake_run(cmd, capture_output, text, check, env=None):
+        captured["cmd"] = cmd
+        return _FakeCompleted(stdout="https://github.com/o/r/pull/7\n", returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    github.pr_create("t", "b", draft=True)
+    assert "--draft" in captured["cmd"]
+
+
+def test_pr_view_returns_dict(monkeypatch):
+    import json
+
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted(
+            stdout=json.dumps({"number": 42, "state": "OPEN", "title": "foo"}),
+            returncode=0,
+        ),
+    )
+    out = github.pr_view("feat/branch")
+    assert out["number"] == 42
+    assert out["state"] == "OPEN"
+
+
+def test_pr_view_returns_none_when_no_pr_for_branch(monkeypatch):
+    def fake_run(cmd, capture_output, text, check, env=None):
+        return _FakeCompleted(
+            stderr='no pull requests found for branch "feat/x"\n',
+            returncode=1,
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert github.pr_view("feat/x") is None
