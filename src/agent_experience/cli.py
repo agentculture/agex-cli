@@ -12,6 +12,7 @@ from agent_experience.commands.hook.scripts import read as hook_read_script
 from agent_experience.commands.hook.scripts import write as hook_write_script
 from agent_experience.commands.learn.scripts import learn as learn_script
 from agent_experience.commands.overview.scripts import overview as overview_script
+from agent_experience.commands.pr.scripts import delta as pr_delta_script
 from agent_experience.commands.pr.scripts import lint as pr_lint_script
 from agent_experience.commands.pr.scripts import open_ as pr_open_script
 from agent_experience.commands.pr.scripts import read as pr_read_script
@@ -208,6 +209,23 @@ def pr_read(
         typer.echo(stdout, nl=False)
     if stderr:
         typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@pr_app.command("delta")
+def pr_delta(
+    agent: Optional[str] = typer.Option(None, "--agent"),
+) -> None:
+    try:
+        stdout, exit_code, stderr = pr_delta_script.run(agent=agent, project_dir=Path.cwd())
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True, nl=False)
     if exit_code != 0:
         raise typer.Exit(code=exit_code)
 

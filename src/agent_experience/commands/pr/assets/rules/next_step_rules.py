@@ -46,3 +46,7 @@ def reply_next_step(pr: int, failure_count: int) -> tuple[str, dict[str, Any]]:
     if failure_count > 0:
         return "reply_with_failures", {"pr": pr}
     return "reply_clean", {"pr": pr}
+
+
+def delta_next_step() -> tuple[str, dict[str, Any]]:
+    return "delta_done", {}
