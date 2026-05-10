@@ -36,6 +36,7 @@ def run(
     title: str,
     body_file: Path | None,
     draft: bool,
+    delayed_read: bool = False,
 ) -> tuple[str, int, str]:
     backend = resolve_backend(agent, project_dir)
     nick = github.resolve_nick(project_dir)
@@ -70,4 +71,12 @@ def run(
             "footer": footer,
         },
     )
+
+    if delayed_read and not was_already_open:
+        from agent_experience.commands.pr.scripts import read as read_script
+
+        read_stdout, read_exit, _ = read_script.run(
+            agent=agent, project_dir=project_dir, pr=pr, wait=180
+        )
+        return stdout + "\n" + read_stdout, read_exit, ""
     return stdout, 0, ""

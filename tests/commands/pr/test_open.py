@@ -122,3 +122,36 @@ def test_pr_open_draft_flag(monkeypatch, tmp_path):
         ],
     )
     assert captured["draft"] is True
+
+
+def test_pr_open_with_delayed_read_chains(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    _patch(monkeypatch, view_returns=None)
+    # Stub the read path so it just returns a sentinel briefing.
+    from agent_experience.commands.pr.scripts import read as read_script
+
+    monkeypatch.setattr(
+        read_script,
+        "run",
+        lambda agent, project_dir, pr, wait: ("\n## Briefing-stub\n", 0, ""),
+    )
+    body_file = tmp_path / "body.md"
+    body_file.write_text("b\n", encoding="utf-8")
+    result = runner.invoke(
+        app,
+        [
+            "pr",
+            "open",
+            "--agent",
+            "claude-code",
+            "--title",
+            "t",
+            "--body-file",
+            str(body_file),
+            "--delayed-read",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "PR opened" in result.stdout
+    assert "#42" in result.stdout
+    assert "Briefing-stub" in result.stdout

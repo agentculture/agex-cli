@@ -140,6 +140,11 @@ def pr_open(
     body_file: Optional[Path] = typer.Option(None, "--body-file"),
     draft: bool = typer.Option(False, "--draft"),
     agent: Optional[str] = typer.Option(None, "--agent"),
+    delayed_read: bool = typer.Option(
+        False,
+        "--delayed-read",
+        help="After create, immediately run `pr read --wait 180`.",
+    ),
 ) -> None:
     try:
         stdout, exit_code, stderr = pr_open_script.run(
@@ -148,6 +153,7 @@ def pr_open(
             title=title,
             body_file=body_file,
             draft=draft,
+            delayed_read=delayed_read,
         )
     except ValueError as exc:
         typer.echo(f"agex: {exc}", err=True)
