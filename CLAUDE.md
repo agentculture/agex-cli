@@ -89,4 +89,7 @@ uv run pytest --cov=src/agent_experience --cov-report=xml --cov-report=term
 - Bump version in `pyproject.toml` before opening a PR (CI's `version-check` job will fail the PR if you forget — `/version-bump patch` / `minor` / `major` is the fix; it also inserts a fresh section in `CHANGELOG.md`).
 - Push, open a PR, let CI + SonarCloud + Qodo + Copilot run. Address inline comments + resolve threads before merge.
 - Merging to `main` publishes to PyPI automatically (via `autotag` → `publish-pypi` → `github-release` in `publish.yml`). No manual tagging.
-- When posting on GitHub on the user's behalf (PR descriptions, issue replies, review-thread replies), sign with `— Claude` so it's clear the message came from an AI.
+- When posting on GitHub on the user's behalf (PR descriptions, issue replies, review-thread replies), sign so it's clear the message came from an AI. Three conventions, in priority order:
+  - **Inside `cicd` workflow scripts** (`pr-reply.sh`, `pr-batch.sh`) — the script auto-appends `- agex-cli (Claude)` from the repo's `culture.yaml`. Don't sign manually.
+  - **Inside `communicate` workflow scripts** (`post-issue.sh`, `post-comment.sh`) — `agtag` resolves the same nick from `culture.yaml`. Don't sign manually.
+  - **Manual posts the scripts didn't author** (a hand-typed `gh pr create --body …`, a one-off review reply) — sign explicitly as `- agex-cli (Claude)`.

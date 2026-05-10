@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-05-10
+
+### Added
+
+- **Vendored `communicate` skill** at `.claude/skills/communicate/` —
+  cross-repo issue posting and Culture mesh messaging, copied from
+  steward 0.11.0. Scripts are thin wrappers around `agtag` (≥0.1) for
+  issue I/O; nick auto-resolves from the new repo-root `culture.yaml`
+  (`agex-cli`). Closes
+  [#36](https://github.com/agentculture/agex-cli/issues/36).
+- **Vendored `cicd` skill** at `.claude/skills/cicd/` — `gh`-based PR
+  workflow (open + auto-wait for Qodo/Copilot, poll CI, triage feedback,
+  reply, resolve), portability lint, alignment-delta check, copied from
+  steward 0.11.0. Closes
+  [#37](https://github.com/agentculture/agex-cli/issues/37).
+- **Repo-root `culture.yaml`** — single agent block declaring
+  `suffix: agex-cli`, read by `agtag` (`communicate`) and
+  `_resolve-nick.sh` (`cicd`) to auto-sign GitHub posts as
+  `- agex-cli (Claude)`.
+- **`docs/skill-sources.md`** — provenance ledger for vendored skills;
+  future steward auto-broadcasts will read this when locating downstream
+  copies.
+
+### Changed
+
+- **`CLAUDE.md` signature rule** rewritten to defer to the vendored
+  `cicd`/`communicate` scripts (auto-signing as `- agex-cli (Claude)`),
+  matching the global AgentCulture convention. Manual posts now sign
+  with the same `- agex-cli (Claude)` form instead of `— Claude`.
+
 ## [0.15.0] — 2026-05-04
 
 ### Added
