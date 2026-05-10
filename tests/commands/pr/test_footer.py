@@ -29,3 +29,12 @@ def test_read_wait_recommendation_plain_for_codex():
 def test_unknown_rule_key_raises():
     with pytest.raises(KeyError):
         render_footer("nonexistent_rule", Backend.CLAUDE_CODE, {})
+
+
+def test_footer_does_not_double_escape_quotes():
+    # Regression: render_string autoescape used to escape `"` to `&#34;`,
+    # then the second pass escaped it again to `&amp;#34;`.
+    out = render_footer("lint_clean", Backend.CLAUDE_CODE, {})
+    assert "&amp;" not in out
+    assert "&#34;" not in out
+    assert '"' in out

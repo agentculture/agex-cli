@@ -6,6 +6,7 @@ from importlib.resources import files
 from typing import Any
 
 import yaml
+from markupsafe import Markup
 
 from agent_experience.core.backend import Backend
 from agent_experience.core.render import render_string
@@ -20,10 +21,12 @@ def _load_hints(backend: Backend) -> dict[str, str]:
     return dict(data.get("hints", {}))
 
 
-def render_footer(rule_key: str, backend: Backend, context: dict[str, Any]) -> str:
+def render_footer(rule_key: str, backend: Backend, context: dict[str, Any]) -> Markup:
     hints = _load_hints(backend)
     if rule_key not in hints:
         raise KeyError(f"no hint defined for rule {rule_key!r} on backend {backend.value!r}")
     hint = render_string(hints[rule_key], context)
     template = files(_TEMPLATES_PKG).joinpath("footer.md.j2").read_text(encoding="utf-8")
-    return render_string(template, {"hint": hint})
+    footer = template.replace("{{ hint }}", hint)
+    # Return as Markup so subsequent render_string calls won't escape it.
+    return Markup(footer)
