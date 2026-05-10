@@ -187,3 +187,43 @@ def pr_resolve_thread(thread_id: str) -> None:
             f"query={_RESOLVE_THREAD_QUERY}",
         ]
     )
+
+
+_SONAR_HOST_ARGS = ["--hostname", "sonarcloud.io"]
+
+
+def sonar_quality_gate(project_key: str, pr: int) -> dict[str, Any] | None:
+    """Query SonarCloud for PR quality gate status; return None if project not found."""
+    args = [
+        "api",
+        *_SONAR_HOST_ARGS,
+        "-X",
+        "GET",
+        f"/api/qualitygates/project_status?projectKey={project_key}&pullRequest={pr}",
+    ]
+    try:
+        out = _run_gh(args)
+    except RuntimeError as exc:
+        if "404" in str(exc):
+            return None
+        raise
+    return json.loads(out)
+
+
+def sonar_new_issues(project_key: str, pr: int) -> list[dict[str, Any]]:
+    """Query SonarCloud for new issues in the PR; return [] if project not found."""
+    args = [
+        "api",
+        *_SONAR_HOST_ARGS,
+        "-X",
+        "GET",
+        f"/api/issues/search?projects={project_key}&pullRequest={pr}&inNewCodePeriod=true",
+    ]
+    try:
+        out = _run_gh(args)
+    except RuntimeError as exc:
+        if "404" in str(exc):
+            return []
+        raise
+    data = json.loads(out)
+    return list(data.get("issues", []))

@@ -195,3 +195,47 @@ def test_pr_resolve_thread_calls_graphql(monkeypatch):
     assert "graphql" in joined
     assert "THREAD_ID_123" in joined
     assert "resolveReviewThread" in joined
+
+
+def test_sonar_quality_gate_returns_dict(monkeypatch):
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted(
+            stdout=json.dumps({"projectStatus": {"status": "OK"}}),
+            returncode=0,
+        ),
+    )
+    out = github.sonar_quality_gate("owner_repo", pr=42)
+    assert out == {"projectStatus": {"status": "OK"}}
+
+
+def test_sonar_quality_gate_returns_none_on_404(monkeypatch):
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted(stderr="HTTP 404\n", returncode=1),
+    )
+    assert github.sonar_quality_gate("missing_project", pr=42) is None
+
+
+def test_sonar_new_issues_returns_list(monkeypatch):
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted(
+            stdout=json.dumps({"issues": [{"key": "i1"}, {"key": "i2"}]}),
+            returncode=0,
+        ),
+    )
+    out = github.sonar_new_issues("owner_repo", pr=42)
+    assert [i["key"] for i in out] == ["i1", "i2"]
+
+
+def test_sonar_new_issues_returns_empty_on_404(monkeypatch):
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *a, **k: _FakeCompleted(stderr="HTTP 404\n", returncode=1),
+    )
+    assert github.sonar_new_issues("missing_project", pr=42) == []
