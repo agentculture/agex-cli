@@ -17,7 +17,9 @@ relevant `SKILL.md` frontmatter `description`.
 When an issue arrives titled "Resync vendored `<name>` skill from steward":
 
 1. Branch `skill/<name>-resync`.
-2. `cp -R /home/spark/git/steward/.claude/skills/<name> .claude/skills/`.
+2. `cp -R <steward-checkout>/.claude/skills/<name> .claude/skills/` (where
+   `<steward-checkout>` is your local clone of
+   [`agentculture/steward`](https://github.com/agentculture/steward)).
 3. `chmod +x .claude/skills/<name>/scripts/*.sh`.
 4. Re-apply identifier adaption (see the divergence column above).
 5. Bump `pyproject.toml` per project convention.
