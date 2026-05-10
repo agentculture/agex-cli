@@ -4,11 +4,14 @@ from typing import Any
 from jinja2 import Environment, FileSystemLoader, StrictUndefined, select_autoescape
 
 # We render markdown for agent / CLI consumption — never HTML in a browser.
-# select_autoescape([]) makes the intent explicit: escape nothing, for any
-# extension. Enabling auto-escape here would corrupt markdown output.
+# select_autoescape([], default_for_string=False) makes the intent explicit:
+# escape nothing, for any extension AND for from_string templates (without
+# the explicit `default_for_string=False`, Jinja silently auto-escapes
+# string templates, which corrupts markdown — apostrophes turn into
+# `&#39;`, `<` into `&lt;`, etc.).
 _ENV = Environment(
     loader=FileSystemLoader("."),
-    autoescape=select_autoescape([]),
+    autoescape=select_autoescape([], default_for_string=False),
     undefined=StrictUndefined,
     keep_trailing_newline=True,
 )
