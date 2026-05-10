@@ -89,3 +89,23 @@ def test_pr_reply_jsonl_parse_error(monkeypatch, tmp_path):
     result = runner.invoke(app, ["pr", "reply", "42", "--agent", "claude-code"], input=jsonl)
     assert result.exit_code == 1
     assert "line 2" in result.stderr.lower() or "line 2" in result.stdout.lower()
+
+
+def test_pr_reply_missing_body_field(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    posted, _ = _setup_post(monkeypatch)
+    jsonl = json.dumps({"in_reply_to": 1})  # no 'body' field
+    result = runner.invoke(app, ["pr", "reply", "42", "--agent", "claude-code"], input=jsonl)
+    assert result.exit_code == 1
+    assert "missing or invalid 'body'" in result.stdout
+    assert len(posted) == 0  # no post attempted
+
+
+def test_pr_reply_non_dict_jsonl_line(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    posted, _ = _setup_post(monkeypatch)
+    jsonl = "[1, 2, 3]"  # valid JSON, not a dict
+    result = runner.invoke(app, ["pr", "reply", "42", "--agent", "claude-code"], input=jsonl)
+    assert result.exit_code == 1
+    assert "missing or invalid 'body'" in result.stdout
+    assert len(posted) == 0

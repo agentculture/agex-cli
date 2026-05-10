@@ -58,6 +58,15 @@ def run(
                 _Failure(line=lineno, reason=f"JSONL parse error: {exc}", entry=raw_line)
             )
             break  # stop processing — caller fixes line and resubmits the slice
+        if not isinstance(entry, dict) or not isinstance(entry.get("body"), str):
+            failures.append(
+                _Failure(
+                    line=lineno,
+                    reason="missing or invalid 'body' field (must be string)",
+                    entry=raw_line,
+                )
+            )
+            break
         body = _signed(entry["body"], nick)
         try:
             github.pr_post_comment(pr=pr, body=body, in_reply_to=entry.get("in_reply_to"))
