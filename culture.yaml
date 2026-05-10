@@ -1,0 +1,3 @@
+agents:
+- suffix: agex-cli
+  backend: claude
