@@ -144,3 +144,46 @@ def pr_comments(pr: int) -> list[dict[str, Any]]:
             }
         )
     return out
+
+
+_RESOLVE_THREAD_QUERY = (
+    "mutation($threadId: ID!) { "
+    "resolveReviewThread(input:{threadId:$threadId}) { thread { id } } "
+    "}"
+)
+
+
+def pr_post_comment(pr: int, body: str, in_reply_to: int | None) -> int:
+    """Post a comment on a PR; return the new comment ID.
+
+    If in_reply_to is None, post a top-level issue comment.
+    If in_reply_to is set, post an inline review comment replying to that comment ID.
+    """
+    slug = _repo_slug()
+    if in_reply_to is None:
+        args = ["api", f"repos/{slug}/issues/{pr}/comments", "-f", f"body={body}"]
+    else:
+        args = [
+            "api",
+            f"repos/{slug}/pulls/{pr}/comments",
+            "-F",
+            f"in_reply_to={in_reply_to}",
+            "-f",
+            f"body={body}",
+        ]
+    out = _run_gh(args)
+    return int(json.loads(out)["id"])
+
+
+def pr_resolve_thread(thread_id: str) -> None:
+    """Resolve a review thread via GraphQL mutation."""
+    _run_gh(
+        [
+            "api",
+            "graphql",
+            "-F",
+            f"threadId={thread_id}",
+            "-f",
+            f"query={_RESOLVE_THREAD_QUERY}",
+        ]
+    )

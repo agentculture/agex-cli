@@ -148,3 +148,50 @@ def test_pr_comments_combines_three_sources(monkeypatch):
     types = {c["type"] for c in comments}
     assert types == {"inline", "top-level", "review"}
     assert len(comments) == 3
+
+
+def test_pr_post_comment_top_level(monkeypatch):
+    captured = {}
+
+    def fake_run(cmd, capture_output, text, check, env=None):
+        captured["cmd"] = cmd
+        return _FakeCompleted(stdout=json.dumps({"id": 999}), returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
+
+    new_id = github.pr_post_comment(pr=42, body="hi", in_reply_to=None)
+    assert new_id == 999
+    assert "issues/42/comments" in " ".join(captured["cmd"])
+
+
+def test_pr_post_comment_reply_to_inline(monkeypatch):
+    captured = {}
+
+    def fake_run(cmd, capture_output, text, check, env=None):
+        captured["cmd"] = cmd
+        return _FakeCompleted(stdout=json.dumps({"id": 1000}), returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
+
+    new_id = github.pr_post_comment(pr=42, body="reply", in_reply_to=100)
+    assert new_id == 1000
+    joined = " ".join(captured["cmd"])
+    assert "pulls/42/comments" in joined
+    assert "in_reply_to=100" in joined
+
+
+def test_pr_resolve_thread_calls_graphql(monkeypatch):
+    captured = {}
+
+    def fake_run(cmd, capture_output, text, check, env=None):
+        captured["cmd"] = cmd
+        return _FakeCompleted(stdout="{}", returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    github.pr_resolve_thread("THREAD_ID_123")
+    joined = " ".join(captured["cmd"])
+    assert "graphql" in joined
+    assert "THREAD_ID_123" in joined
+    assert "resolveReviewThread" in joined
