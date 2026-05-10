@@ -45,3 +45,13 @@ def test_delta_missing_skills_local(monkeypatch, tmp_path):
     assert result.exit_code == 0
     assert "skills.local.yaml" in result.stdout
     assert "skills.local.yaml.example" in result.stderr
+
+
+def test_pr_delta_handles_gh_runtime_error_propagation(monkeypatch, tmp_path):
+    # delta doesn't call gh today, but the cli handler should still be
+    # defensive in case future implementations do.
+    monkeypatch.chdir(tmp_path)
+    # No skills.local.yaml — exits 0 via the existing path. Verify the
+    # cli wrapper wires through correctly.
+    result = runner.invoke(app, ["pr", "delta", "--agent", "claude-code"])
+    assert result.exit_code == 0

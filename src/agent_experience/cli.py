@@ -182,6 +182,10 @@ def pr_reply(
     except ValueError as exc:
         typer.echo(f"agex: {exc}", err=True)
         raise typer.Exit(code=2)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        typer.echo("agex: rerun once network is reachable (gh failed)", err=True)
+        raise typer.Exit(code=1)
     if stdout:
         typer.echo(stdout, nl=False)
     if stderr:
@@ -205,6 +209,10 @@ def pr_read(
     except ValueError as exc:
         typer.echo(f"agex: {exc}", err=True)
         raise typer.Exit(code=2)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        typer.echo("agex: rerun once network is reachable (gh failed)", err=True)
+        raise typer.Exit(code=1)
     if stdout:
         typer.echo(stdout, nl=False)
     if stderr:
@@ -222,6 +230,10 @@ def pr_delta(
     except ValueError as exc:
         typer.echo(f"agex: {exc}", err=True)
         raise typer.Exit(code=2)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        typer.echo("agex: rerun once network is reachable (gh failed)", err=True)
+        raise typer.Exit(code=1)
     if stdout:
         typer.echo(stdout, nl=False)
     if stderr:
