@@ -92,8 +92,42 @@ def _repo_slug() -> str:
 
 
 def pr_checks(pr: int) -> list[dict[str, Any]]:
-    out = _run_gh(["pr", "checks", str(pr), "--json", "name,status,conclusion,link"])
-    return json.loads(out)
+    """Return normalized [{name, status, conclusion, link}] for the PR.
+
+    Uses `gh pr view --json statusCheckRollup` (works on gh >= 2.4) instead
+    of `gh pr checks --json` (which requires gh >= 2.52).
+    """
+    out = _run_gh(["pr", "view", str(pr), "--json", "statusCheckRollup"])
+    data = json.loads(out)
+    rollup = data.get("statusCheckRollup") or []
+    normalized: list[dict[str, Any]] = []
+    for node in rollup:
+        kind = node.get("__typename")
+        if kind == "CheckRun":
+            normalized.append(
+                {
+                    "name": node.get("name", ""),
+                    "status": (node.get("status") or "").lower(),
+                    "conclusion": (node.get("conclusion") or "").lower(),
+                    "link": node.get("detailsUrl", ""),
+                }
+            )
+        elif kind == "StatusContext":
+            state = (node.get("state") or "").upper()
+            conclusion = ""
+            if state == "SUCCESS":
+                conclusion = "success"
+            elif state in ("FAILURE", "ERROR"):
+                conclusion = "failure"
+            normalized.append(
+                {
+                    "name": node.get("context", ""),
+                    "status": "completed",
+                    "conclusion": conclusion,
+                    "link": node.get("targetUrl", ""),
+                }
+            )
+    return normalized
 
 
 def pr_comments(pr: int) -> list[dict[str, Any]]:

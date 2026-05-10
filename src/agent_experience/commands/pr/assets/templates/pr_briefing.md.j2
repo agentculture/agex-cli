@@ -38,7 +38,7 @@ _Project not on SonarCloud (skipped)._
 _No comments yet._
 {%- else -%}
 {% for c in comments -%}
-- **[{{ c.type }}]** `{{ c.author }}`{% if c.path %} on `{{ c.path }}:{{ c.line }}`{% endif %}: {{ c.body | truncate(200) }}
+- **[{{ c.type }}]** `{{ c.author }}`{% if c['path'] | default %} on `{{ c['path'] }}:{{ c['line'] }}`{% endif %}: {{ c.body | truncate(200) }}
 {% endfor %}
 {%- endif %}
 

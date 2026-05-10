@@ -115,8 +115,15 @@ def test_pr_checks_parses_json(monkeypatch):
         lambda *a, **k: _FakeCompleted(stdout=fixture.read_text(), returncode=0),
     )
     checks = github.pr_checks(42)
-    assert len(checks) == 2
-    assert checks[1]["conclusion"] == "failure"
+    # Now: 2 CheckRun + 1 StatusContext = 3 normalized rows
+    assert len(checks) == 3
+    # Find the lint CheckRun
+    lint = next(c for c in checks if c["name"] == "lint")
+    assert lint["conclusion"] == "failure"
+    # Find the StatusContext (SonarCloud)
+    sonar = next(c for c in checks if c["name"] == "SonarCloud")
+    assert sonar["conclusion"] == "failure"
+    assert sonar["status"] == "completed"
 
 
 def test_pr_comments_combines_three_sources(monkeypatch):
