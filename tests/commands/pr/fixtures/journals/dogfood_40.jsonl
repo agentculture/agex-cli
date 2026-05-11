@@ -1,0 +1,19 @@
+{"ts":"2026-05-10T08:08:48.413268+00:00","type":"pr_opened","pr":40,"title":"feat: agex pr command namespace (0.17.0)"}
+{"ts":"2026-05-10T08:09:51.243396+00:00","type":"readiness_arrived","pr":40,"waited_secs":60}
+{"ts":"2026-05-10T08:12:33.217998+00:00","type":"pr_read","pr":40,"comment_count":6,"threads_unresolved":0,"ci_state":"failure"}
+{"ts":"2026-05-10T08:12:38.960584+00:00","type":"pr_read","pr":40,"comment_count":6,"threads_unresolved":0,"ci_state":"failure"}
+{"ts":"2026-05-10T08:13:48.455582+00:00","type":"pr_read","pr":40,"comment_count":6,"threads_unresolved":0,"ci_state":"failure"}
+{"ts":"2026-05-10T08:14:09.390899+00:00","type":"pr_read","pr":40,"comment_count":6,"threads_unresolved":0,"ci_state":"failure"}
+{"ts":"2026-05-10T08:14:50.337703+00:00","type":"pr_read","pr":40,"comment_count":6,"threads_unresolved":0,"ci_state":"failure"}
+{"ts":"2026-05-10T08:15:17.427942+00:00","type":"pr_read","pr":40,"comment_count":6,"threads_unresolved":0,"ci_state":"ok"}
+{"ts":"2026-05-10T08:16:32.153364+00:00","type":"pr_read","pr":40,"comment_count":13,"threads_unresolved":7,"ci_state":"failure"}
+{"ts":"2026-05-10T08:18:11.659835+00:00","type":"pr_read","pr":40,"comment_count":13,"threads_unresolved":7,"ci_state":"failure"}
+{"ts":"2026-05-10T08:18:38.895391+00:00","type":"pr_read","pr":40,"comment_count":13,"threads_unresolved":7,"ci_state":"ok"}
+{"ts":"2026-05-10T08:26:21.075166+00:00","type":"pr_reply","pr":40,"thread_id":"PRRT_kwDOSF2UYM6A4nlE","in_reply_to":3214553097}
+{"ts":"2026-05-10T08:26:23.055047+00:00","type":"pr_reply","pr":40,"thread_id":"PRRT_kwDOSF2UYM6A4nlF","in_reply_to":3214553098}
+{"ts":"2026-05-10T08:26:24.862868+00:00","type":"pr_reply","pr":40,"thread_id":"PRRT_kwDOSF2UYM6A4nlH","in_reply_to":3214553100}
+{"ts":"2026-05-10T08:26:26.600157+00:00","type":"pr_reply","pr":40,"thread_id":"PRRT_kwDOSF2UYM6A4nlI","in_reply_to":3214553101}
+{"ts":"2026-05-10T08:26:27.040766+00:00","type":"pr_batch_replied","pr":40,"count":4,"resolved":4}
+{"ts":"2026-05-10T08:26:37.157054+00:00","type":"pr_read","pr":40,"comment_count":17,"threads_unresolved":7,"ci_state":"failure"}
+{"ts":"2026-05-11T17:05:28.322565+00:00","type":"readiness_arrived","pr":40,"waited_secs":0}
+{"ts":"2026-05-11T17:05:32.453354+00:00","type":"pr_read","pr":40,"comment_count":17,"threads_unresolved":7,"ci_state":"ok"}
