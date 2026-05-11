@@ -40,7 +40,7 @@ def _resolve_pr(pr: int | None) -> int:
 
 def _project_key() -> str:
     """SonarCloud project key convention: <owner>_<repo>."""
-    slug = github._repo_slug()  # noqa: SLF001 - internal helper, intentional
+    slug = github._repo_slug()  # noqa: SLF001
     return slug.replace("/", "_")
 
 

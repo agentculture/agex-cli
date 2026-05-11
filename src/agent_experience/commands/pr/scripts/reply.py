@@ -57,6 +57,29 @@ def _validate_entry(raw_line: str, lineno: int) -> tuple[dict | None, _Failure |
     return entry, None, False
 
 
+def _post_entry(entry: dict, nick: str, pr: int) -> bool:
+    """Post one reply + optional thread resolution; append journal events.
+
+    Returns True if a thread was resolved (caller increments resolved count).
+    Raises RuntimeError on gh failure — caller records the failure and stops.
+    """
+    body = _signed(entry["body"], nick)
+    github.pr_post_comment(pr=pr, body=body, in_reply_to=entry.get("in_reply_to"))
+    _journal.append(
+        {
+            "type": "pr_reply",
+            "pr": pr,
+            "thread_id": entry.get("thread_id"),
+            "in_reply_to": entry.get("in_reply_to"),
+        }
+    )
+    thread_id = entry.get("thread_id")
+    if thread_id:
+        github.pr_resolve_thread(thread_id)
+        return True
+    return False
+
+
 def run(
     agent: str | None,
     project_dir: Path,
@@ -80,23 +103,10 @@ def run(
                 parse_error_line = lineno
             failures.append(failure)
             break  # stop processing — caller fixes line and resubmits the slice
-        body = _signed(entry["body"], nick)  # type: ignore[index]
         try:
-            github.pr_post_comment(  # type: ignore[union-attr]
-                pr=pr, body=body, in_reply_to=entry.get("in_reply_to")
-            )
+            did_resolve = _post_entry(entry, nick, pr)  # type: ignore[arg-type]
             posted += 1
-            _journal.append(
-                {
-                    "type": "pr_reply",
-                    "pr": pr,
-                    "thread_id": entry.get("thread_id"),  # type: ignore[union-attr]
-                    "in_reply_to": entry.get("in_reply_to"),  # type: ignore[union-attr]
-                }
-            )
-            if entry.get("thread_id"):  # type: ignore[union-attr]
-                github.pr_resolve_thread(entry["thread_id"])  # type: ignore[index]
-                resolved += 1
+            resolved += 1 if did_resolve else 0
         except RuntimeError as exc:
             failures.append(_Failure(line=lineno, reason=str(exc), entry=raw_line))
             break  # stop on first network failure to keep recovery simple
