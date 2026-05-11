@@ -16,17 +16,13 @@ from agent_experience.commands.pr.assets.rules.next_step_rules import (
     read_next_step,
     read_wait_timeout_step,
 )
-from agent_experience.commands.pr.scripts import _journal
+from agent_experience.commands.pr.scripts import _journal, _readiness, _sonar
 from agent_experience.commands.pr.scripts._footer import render_footer
-from agent_experience.core import config as cfg_mod
 from agent_experience.core import github
 from agent_experience.core.backend import resolve_backend
 from agent_experience.core.render import render_string
 
 _TEMPLATES_PKG = "agent_experience.commands.pr.assets.templates"
-
-_DEFAULT_REVIEWERS = ["qodo"]
-_POLL_INTERVAL_SEC = 60
 
 
 def _resolve_pr(pr: int | None) -> int:
@@ -36,12 +32,6 @@ def _resolve_pr(pr: int | None) -> int:
     if view is None:
         raise ValueError("no PR found for current branch; pass <PR> explicitly")
     return int(view["number"])
-
-
-def _project_key() -> str:
-    """SonarCloud project key convention: <owner>_<repo>."""
-    slug = github._repo_slug()  # noqa: SLF001
-    return slug.replace("/", "_")
 
 
 def _has_recent_local_commits(journal_events: list[dict[str, Any]], pr: int) -> bool:
@@ -63,42 +53,6 @@ def _has_recent_local_commits(journal_events: list[dict[str, Any]], pr: int) -> 
     return bool(out)
 
 
-def _threads_unresolved(comments: list[dict[str, Any]]) -> int:
-    """Inline comments with no in_reply_to that haven't been answered.
-    v0.1 heuristic: count distinct top-level inline comments (no in_reply_to).
-    Refined in a follow-up.
-    """
-    inline = [c for c in comments if c.get("type") == "inline"]
-    top_level = [c for c in inline if c.get("in_reply_to") is None]
-    return max(0, len(top_level))
-
-
-def _required_reviewers() -> list[str]:
-    try:
-        cfg = cfg_mod.load()
-    except Exception:
-        return list(_DEFAULT_REVIEWERS)
-    return list(cfg.pr.get("required_reviewers", _DEFAULT_REVIEWERS))
-
-
-def _is_ready(comments: list[dict[str, Any]], required: list[str]) -> tuple[bool, list[str]]:
-    """Return (ready, still_waiting). Ready = each required reviewer has at
-    least one inline OR review comment with non-trivial body."""
-    seen: set[str] = set()
-    for c in comments:
-        raw_author = (c.get("author") or "").lower()
-        # Strip common bot suffixes like "[bot]" before matching.
-        author = raw_author.removesuffix("[bot]").removesuffix("[")
-        body = (c.get("body") or "").strip()
-        if not body:
-            continue
-        for r in required:
-            if r.lower() in author:
-                seen.add(r)
-    waiting = [r for r in required if r not in seen]
-    return (not waiting, waiting)
-
-
 def run(
     agent: str | None,
     project_dir: Path,
@@ -111,12 +65,12 @@ def run(
     waited_secs = 0
     waiting_for: list[str] = []
     if wait is not None and wait > 0:
-        required = _required_reviewers()
+        required = _readiness.required_reviewers()
         deadline = wait
         ready = False
         while waited_secs < deadline:
             comments = github.pr_comments(pr_number)
-            ready, waiting_for = _is_ready(comments, required)
+            ready, waiting_for = _readiness.is_ready(comments, required)
             sys.stderr.write(
                 f"agex: pr_read --wait: pr={pr_number} waited={waited_secs}s "
                 f"ready={ready} waiting_for={waiting_for}\n"
@@ -127,7 +81,7 @@ def run(
                     {"type": "readiness_arrived", "pr": pr_number, "waited_secs": waited_secs}
                 )
                 break
-            interval = min(_POLL_INTERVAL_SEC, max(1, deadline - waited_secs))
+            interval = min(_readiness.POLL_INTERVAL_SEC, max(1, deadline - waited_secs))
             time.sleep(interval)
             waited_secs += interval
         if not ready:
@@ -159,11 +113,11 @@ def run(
     pr_meta = github.pr_view(str(pr_number))
     checks = github.pr_checks(pr_number)
     comments = github.pr_comments(pr_number)
-    project_key = _project_key()
+    project_key = _sonar.project_key()
     sonar_gate = github.sonar_quality_gate(project_key, pr_number)
     sonar_issues = github.sonar_new_issues(project_key, pr_number)
 
-    threads_unresolved = _threads_unresolved(comments)
+    threads_unresolved = _readiness.threads_unresolved(pr_number)
     journal_events = _journal.load()
     has_recent_commits = _has_recent_local_commits(journal_events, pr_number)
     ci_red = any(c.get("conclusion") == "failure" for c in checks)

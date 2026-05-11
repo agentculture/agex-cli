@@ -24,6 +24,7 @@ def _setup_clean(monkeypatch, *, comments=None, checks=None):
     monkeypatch.setattr(github, "pr_comments", lambda pr: comments or [])
     monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: None)
     monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: [])
+    monkeypatch.setattr(github, "pr_review_threads", lambda pr: [])
     # Avoid network round-trip in _project_key derivation:
     monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
 
@@ -111,6 +112,7 @@ def test_pr_read_wait_returns_when_ready(monkeypatch, tmp_path):
     monkeypatch.setattr(github, "pr_comments", comments_call)
     monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: None)
     monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: [])
+    monkeypatch.setattr(github, "pr_review_threads", lambda pr: [])
     monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
 
     # Speed up the loop's sleep.
@@ -143,6 +145,7 @@ def test_pr_read_wait_timeout_renders_still_waiting(monkeypatch, tmp_path):
     monkeypatch.setattr(github, "pr_comments", lambda pr: [])  # never ready
     monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: None)
     monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: [])
+    monkeypatch.setattr(github, "pr_review_threads", lambda pr: [])
     monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
     from agent_experience.commands.pr.scripts import read as read_script
 
@@ -153,6 +156,45 @@ def test_pr_read_wait_timeout_renders_still_waiting(monkeypatch, tmp_path):
     assert result.exit_code == 0
     assert "Still waiting" in result.stdout
     assert "Rerun `agex pr read 42 --wait 180`" in result.stdout
+
+
+def test_sonar_project_key_env_override(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    seen: dict[str, str] = {}
+
+    def _gate(key, pr):
+        seen["gate_key"] = key
+        return None
+
+    def _issues(key, pr):
+        seen["issues_key"] = key
+        return []
+
+    monkeypatch.setattr(
+        github,
+        "pr_view",
+        lambda x: {
+            "number": 42,
+            "state": "OPEN",
+            "title": "t",
+            "url": "",
+            "headRefName": "h",
+            "baseRefName": "main",
+        },
+    )
+    monkeypatch.setattr(github, "pr_checks", lambda pr: [])
+    monkeypatch.setattr(github, "pr_comments", lambda pr: [])
+    monkeypatch.setattr(github, "sonar_quality_gate", _gate)
+    monkeypatch.setattr(github, "sonar_new_issues", _issues)
+    monkeypatch.setattr(github, "pr_review_threads", lambda pr: [])
+    # _repo_slug must NOT win when the env override is present.
+    monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
+    monkeypatch.setenv("SONAR_PROJECT_KEY", "custom_override")
+
+    result = runner.invoke(app, ["pr", "read", "42", "--agent", "claude-code"])
+    assert result.exit_code == 0
+    assert seen["gate_key"] == "custom_override"
+    assert seen["issues_key"] == "custom_override"
 
 
 def test_pr_read_handles_gh_runtime_error(monkeypatch, tmp_path):

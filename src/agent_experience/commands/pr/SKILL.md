@@ -1,20 +1,38 @@
 ---
 name: pr
-description: GitHub PR lifecycle commands for agents — lint, open, read, reply, delta. Each command ends with a deterministic "Next step:" footer so the agent never has to guess what to chain.
+description: GitHub PR lifecycle commands for agents — lint, open, read, reply, await, delta. Each command ends with a deterministic "Next step:" footer so the agent never has to guess what to chain.
 type: command
 ---
 
 # `agex pr` — PR lifecycle for agents
 
-Five verbs, in roughly the order an agent uses them on a PR:
+Six verbs, in roughly the order an agent uses them on a PR:
 
 | Verb | Purpose |
 |---|---|
 | `agex pr lint` | Portability + alignment-trigger lint on the working diff. |
 | `agex pr open --title T [--body-file F] [--draft] [--delayed-read]` | `gh pr create` with auto-signed body; with `--delayed-read` chains to `read --wait 180`. |
-| `agex pr read [<PR>] [--wait SECS]` | Unified briefing: CI checks, SonarCloud quality gate, all comments, reviewer readiness. With `--wait`, polls until required reviewers are ready or timeout. |
+| `agex pr read [<PR>] [--wait SECS]` | Unified briefing: CI checks, SonarCloud quality gate, all comments, reviewer readiness. With `--wait`, polls until required reviewers are ready or timeout. Always exits 0. |
 | `agex pr reply <PR>` | Read JSONL replies on stdin, post each, resolve threads. |
+| `agex pr await [<PR>] [--max-wait SECS]` | "Wake me when this is triage-able" — polls readiness, runs CI + Sonar gate, dumps briefing. **Exits 1 on quality-gate `ERROR`, unresolved threads, or failing CI checks**, 0 on clean state or timeout. Default `--max-wait 1800` (30 min). |
 | `agex pr delta` | Dump sibling-project `CLAUDE.md` heads + `culture.yaml` for alignment review. |
+
+`pr read --wait` and `pr await` share the same readiness-polling loop; the
+difference is the exit code. Use `read` when you want the briefing
+unconditionally; use `await` when you want to **gate** the next step on
+PR health (e.g., in scripts that should fail if Sonar errors).
+
+## SonarCloud project key
+
+`pr read` and `pr await` query the SonarCloud quality gate for the current
+PR. The project key is resolved in order:
+
+1. `SONAR_PROJECT_KEY` env var (override for non-standard naming).
+2. `[pr] sonar_project_key` in `.agex/config.toml`.
+3. `<owner>_<repo>` (SonarCloud GitHub-import default).
+
+When the project isn't on SonarCloud the API 404s and agex silently
+skips the section, so the verbs stay safe for non-Sonar repos.
 
 Every command ends with a `**Next step:**` footer — chase the chain without guessing.
 

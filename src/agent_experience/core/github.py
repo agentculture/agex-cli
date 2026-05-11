@@ -224,6 +224,47 @@ def pr_resolve_thread(thread_id: str) -> None:
     )
 
 
+_REVIEW_THREADS_QUERY = (
+    "query($owner: String!, $repo: String!, $pr: Int!) { "
+    "repository(owner:$owner, name:$repo) { "
+    "pullRequest(number:$pr) { "
+    "reviewThreads(first:100) { nodes { id isResolved } } "
+    "} } }"
+)
+
+
+def pr_review_threads(pr: int) -> list[dict[str, Any]]:
+    """Return all review threads on a PR with their resolution state.
+
+    Each item: ``{"id": <node_id>, "isResolved": <bool>}``.  Empty list
+    when the PR has no review threads.
+    """
+    owner, repo = _repo_slug().split("/", 1)
+    out = _run_gh(
+        [
+            "api",
+            "graphql",
+            "-F",
+            f"owner={owner}",
+            "-F",
+            f"repo={repo}",
+            "-F",
+            f"pr={pr}",
+            "-f",
+            f"query={_REVIEW_THREADS_QUERY}",
+        ]
+    )
+    data = json.loads(out)
+    nodes = (
+        data.get("data", {})
+        .get("repository", {})
+        .get("pullRequest", {})
+        .get("reviewThreads", {})
+        .get("nodes", [])
+    ) or []
+    return [{"id": n["id"], "isResolved": bool(n.get("isResolved"))} for n in nodes]
+
+
 _SONAR_HOST_ARGS = ["--hostname", "sonarcloud.io"]
 
 

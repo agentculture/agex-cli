@@ -42,6 +42,25 @@ def read_wait_timeout_step(pr: int, reviewers: list[str]) -> tuple[str, dict[str
     return "read_wait_timeout", {"pr": pr, "reviewers": ", ".join(reviewers)}
 
 
+def await_next_step(
+    pr: int,
+    gate_error: bool,
+    threads_unresolved: int,
+    ci_red: bool,
+) -> tuple[str, dict[str, Any]]:
+    if gate_error:
+        return "await_gate_error", {"pr": pr}
+    if threads_unresolved > 0:
+        return "await_unresolved_threads", {"pr": pr}
+    if ci_red:
+        return "await_ci_red", {"pr": pr}
+    return "await_clean", {"pr": pr}
+
+
+def await_wait_timeout_step(pr: int, reviewers: list[str]) -> tuple[str, dict[str, Any]]:
+    return "await_wait_timeout", {"pr": pr, "reviewers": ", ".join(reviewers)}
+
+
 def reply_next_step(pr: int, failure_count: int) -> tuple[str, dict[str, Any]]:
     if failure_count > 0:
         return "reply_with_failures", {"pr": pr}
