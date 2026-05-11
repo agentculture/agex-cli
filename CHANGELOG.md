@@ -13,10 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `agex pr await [<PR>] [--max-wait SECS]` — combo verb that polls
   reviewer readiness, runs CI + SonarCloud quality gate, and dumps the
-  unified briefing. **Exits 1 on quality-gate `ERROR` or unresolved
-  review threads**, 0 on clean state or timeout. Use this when a script
-  should fail if the PR isn't triage-able. Closes
-  [#41](https://github.com/agentculture/agex-cli/issues/41).
+  unified briefing. **Exits 1 on quality-gate `ERROR`, unresolved
+  review threads, or failing CI checks**, 0 on clean state or timeout.
+  Use this when a script should fail if the PR isn't triage-able.
+  Closes [#41](https://github.com/agentculture/agex-cli/issues/41).
 - `SONAR_PROJECT_KEY` env var (and `[pr].sonar_project_key` config key)
   override the default `<owner>_<repo>` SonarCloud project-key
   derivation, for repos with non-standard project naming.

@@ -14,7 +14,7 @@ Six verbs, in roughly the order an agent uses them on a PR:
 | `agex pr open --title T [--body-file F] [--draft] [--delayed-read]` | `gh pr create` with auto-signed body; with `--delayed-read` chains to `read --wait 180`. |
 | `agex pr read [<PR>] [--wait SECS]` | Unified briefing: CI checks, SonarCloud quality gate, all comments, reviewer readiness. With `--wait`, polls until required reviewers are ready or timeout. Always exits 0. |
 | `agex pr reply <PR>` | Read JSONL replies on stdin, post each, resolve threads. |
-| `agex pr await [<PR>] [--max-wait SECS]` | "Wake me when this is triage-able" — polls readiness, runs CI + Sonar gate, dumps briefing. **Exits 1 on quality-gate `ERROR` or unresolved threads**, 0 on clean state or timeout. Default `--max-wait 1800` (30 min). |
+| `agex pr await [<PR>] [--max-wait SECS]` | "Wake me when this is triage-able" — polls readiness, runs CI + Sonar gate, dumps briefing. **Exits 1 on quality-gate `ERROR`, unresolved threads, or failing CI checks**, 0 on clean state or timeout. Default `--max-wait 1800` (30 min). |
 | `agex pr delta` | Dump sibling-project `CLAUDE.md` heads + `culture.yaml` for alignment review. |
 
 `pr read --wait` and `pr await` share the same readiness-polling loop; the

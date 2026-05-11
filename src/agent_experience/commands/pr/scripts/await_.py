@@ -138,7 +138,7 @@ def run(
         },
     )
 
-    exit_code = 1 if (gate_error or threads_unresolved > 0) else 0
+    exit_code = 1 if (gate_error or threads_unresolved > 0 or ci_red) else 0
     _journal.append(
         {
             "type": "pr_await",

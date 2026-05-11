@@ -37,10 +37,11 @@ the result:
 
 - `agex pr read <PR> --wait 180` — always exits 0. Renders the briefing
   and lets the agent decide. Use when you want the unified view.
-- `agex pr await <PR>` — exits **1** on SonarCloud gate `ERROR` or
-  unresolved review threads, **0** otherwise (clean state or timeout).
-  Use when you want to gate the next command on PR health (e.g., in a
-  shell loop that should fail if Sonar errors).
+- `agex pr await <PR>` — exits **1** on SonarCloud gate `ERROR`,
+  unresolved review threads, or failing CI checks; **0** otherwise
+  (clean state or timeout). Use when you want to gate the next command
+  on PR health (e.g., in a shell loop that should fail if Sonar or CI
+  is red).
 
 ## When CLAUDE.md / culture.yaml / .claude/skills change
 

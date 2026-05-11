@@ -121,6 +121,28 @@ def test_await_exit_1_on_unresolved_threads(monkeypatch, tmp_path):
     assert "replies.jsonl" in result.stdout
 
 
+def test_await_exit_1_on_ci_failure(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    _setup(
+        monkeypatch,
+        comments=[_ready_comment()],
+        checks=[{"name": "test", "status": "completed", "conclusion": "failure"}],
+        sonar_gate={"projectStatus": {"status": "OK"}},
+    )
+    result = runner.invoke(
+        app, ["pr", "await", "42", "--max-wait", "1", "--agent", "claude-code"]
+    )
+    assert result.exit_code == 1
+    assert "Fix CI" in result.stdout
+    events = _journal.load()
+    assert any(
+        e["type"] == "pr_await"
+        and e.get("outcome") == "blocked"
+        and e.get("ci_state") == "failure"
+        for e in events
+    )
+
+
 def test_await_timeout_exits_0_with_still_waiting(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     _setup(monkeypatch, comments=[])  # never ready
