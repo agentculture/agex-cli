@@ -80,6 +80,37 @@ def _post_entry(entry: dict, nick: str, pr: int) -> bool:
     return False
 
 
+def _process_line(
+    raw_line: str, lineno: int, nick: str, pr: int
+) -> tuple[int, int, _Failure | None, bool]:
+    """Process one JSONL line. Returns (posted_delta, resolved_delta, failure, is_parse_error).
+
+    Caller breaks the loop when failure is not None.
+    """
+    entry, failure, is_parse_error = _validate_entry(raw_line, lineno)
+    if failure is not None:
+        return 0, 0, failure, is_parse_error
+    try:
+        did_resolve = _post_entry(entry, nick, pr)  # type: ignore[arg-type]
+    except RuntimeError as exc:
+        return 0, 0, _Failure(line=lineno, reason=str(exc), entry=raw_line), False
+    return 1, (1 if did_resolve else 0), None, False
+
+
+def _stderr_for_failures(failures: list[_Failure], parse_error_line: int | None, pr: int) -> str:
+    """Build the instructive stderr line for the failure case."""
+    if parse_error_line is not None:
+        return (
+            f"agex: fix line {parse_error_line} (see stdout) and resubmit "
+            f"lines {parse_error_line}..end to 'agex pr reply {pr}'\n"
+        )
+    first_failed = failures[0].line
+    return (
+        f"agex: resubmit lines {first_failed}..end from the table above "
+        f"to 'agex pr reply {pr}'\n"
+    )
+
+
 def run(
     agent: str | None,
     project_dir: Path,
@@ -97,19 +128,14 @@ def run(
     for lineno, raw_line in enumerate(raw.splitlines(), start=1):
         if not raw_line.strip():
             continue
-        entry, failure, is_parse_error = _validate_entry(raw_line, lineno)
+        dp, dr, failure, is_parse_error = _process_line(raw_line, lineno, nick, pr)
+        posted += dp
+        resolved += dr
         if failure is not None:
             if is_parse_error:
                 parse_error_line = lineno
             failures.append(failure)
-            break  # stop processing — caller fixes line and resubmits the slice
-        try:
-            did_resolve = _post_entry(entry, nick, pr)  # type: ignore[arg-type]
-            posted += 1
-            resolved += 1 if did_resolve else 0
-        except RuntimeError as exc:
-            failures.append(_Failure(line=lineno, reason=str(exc), entry=raw_line))
-            break  # stop on first network failure to keep recovery simple
+            break
 
     _journal.append({"type": "pr_batch_replied", "pr": pr, "count": posted, "resolved": resolved})
 
@@ -127,17 +153,6 @@ def run(
             "footer": footer,
         },
     )
-    if failures:
-        if parse_error_line is not None:
-            stderr = (
-                f"agex: fix line {parse_error_line} (see stdout) and resubmit "
-                f"lines {parse_error_line}..end to 'agex pr reply {pr}'\n"
-            )
-        else:
-            first_failed = failures[0].line
-            stderr = (
-                f"agex: resubmit lines {first_failed}..end from the table above "
-                f"to 'agex pr reply {pr}'\n"
-            )
-        return stdout, 1, stderr
-    return stdout, 0, ""
+    if not failures:
+        return stdout, 0, ""
+    return stdout, 1, _stderr_for_failures(failures, parse_error_line, pr)
