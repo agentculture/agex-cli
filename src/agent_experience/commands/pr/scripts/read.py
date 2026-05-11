@@ -40,7 +40,7 @@ def _resolve_pr(pr: int | None) -> int:
 
 def _project_key() -> str:
     """SonarCloud project key convention: <owner>_<repo>."""
-    slug = github._repo_slug()  # noqa: SLF001 — internal helper, intentional
+    slug = github._repo_slug()  # noqa: SLF001 - internal helper, intentional
     return slug.replace("/", "_")
 
 
@@ -73,7 +73,7 @@ def _threads_unresolved(comments: list[dict[str, Any]]) -> int:
     return max(0, len(top_level))
 
 
-def _required_reviewers(project_dir: Path) -> list[str]:
+def _required_reviewers() -> list[str]:
     try:
         cfg = cfg_mod.load()
     except Exception:
@@ -111,7 +111,7 @@ def run(
     waited_secs = 0
     waiting_for: list[str] = []
     if wait is not None and wait > 0:
-        required = _required_reviewers(project_dir)
+        required = _required_reviewers()
         deadline = wait
         ready = False
         while waited_secs < deadline:

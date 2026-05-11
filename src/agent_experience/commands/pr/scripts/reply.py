@@ -33,6 +33,30 @@ def _signed(body: str, nick: str) -> str:
     return f"{body}{sep}\n{sig}\n"
 
 
+def _validate_entry(raw_line: str, lineno: int) -> tuple[dict | None, _Failure | None, bool]:
+    """Parse and validate one JSONL line.
+
+    Returns (entry, None, False) on success, or (None, failure, is_parse_error)
+    on error.  The caller should break and record parse_error_line when
+    is_parse_error is True.
+    """
+    try:
+        entry = json.loads(raw_line)
+    except json.JSONDecodeError as exc:
+        return None, _Failure(line=lineno, reason=f"JSONL parse error: {exc}", entry=raw_line), True
+    if not isinstance(entry, dict) or not isinstance(entry.get("body"), str):
+        return (
+            None,
+            _Failure(
+                line=lineno,
+                reason="missing or invalid 'body' field (must be string)",
+                entry=raw_line,
+            ),
+            False,
+        )
+    return entry, None, False
+
+
 def run(
     agent: str | None,
     project_dir: Path,
@@ -50,37 +74,28 @@ def run(
     for lineno, raw_line in enumerate(raw.splitlines(), start=1):
         if not raw_line.strip():
             continue
-        try:
-            entry = json.loads(raw_line)
-        except json.JSONDecodeError as exc:
-            parse_error_line = lineno
-            failures.append(
-                _Failure(line=lineno, reason=f"JSONL parse error: {exc}", entry=raw_line)
-            )
+        entry, failure, is_parse_error = _validate_entry(raw_line, lineno)
+        if failure is not None:
+            if is_parse_error:
+                parse_error_line = lineno
+            failures.append(failure)
             break  # stop processing — caller fixes line and resubmits the slice
-        if not isinstance(entry, dict) or not isinstance(entry.get("body"), str):
-            failures.append(
-                _Failure(
-                    line=lineno,
-                    reason="missing or invalid 'body' field (must be string)",
-                    entry=raw_line,
-                )
-            )
-            break
-        body = _signed(entry["body"], nick)
+        body = _signed(entry["body"], nick)  # type: ignore[index]
         try:
-            github.pr_post_comment(pr=pr, body=body, in_reply_to=entry.get("in_reply_to"))
+            github.pr_post_comment(  # type: ignore[union-attr]
+                pr=pr, body=body, in_reply_to=entry.get("in_reply_to")
+            )
             posted += 1
             _journal.append(
                 {
                     "type": "pr_reply",
                     "pr": pr,
-                    "thread_id": entry.get("thread_id"),
-                    "in_reply_to": entry.get("in_reply_to"),
+                    "thread_id": entry.get("thread_id"),  # type: ignore[union-attr]
+                    "in_reply_to": entry.get("in_reply_to"),  # type: ignore[union-attr]
                 }
             )
-            if entry.get("thread_id"):
-                github.pr_resolve_thread(entry["thread_id"])
+            if entry.get("thread_id"):  # type: ignore[union-attr]
+                github.pr_resolve_thread(entry["thread_id"])  # type: ignore[index]
                 resolved += 1
         except RuntimeError as exc:
             failures.append(_Failure(line=lineno, reason=str(exc), entry=raw_line))

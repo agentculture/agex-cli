@@ -19,7 +19,7 @@ from typing import Any
 import yaml
 
 
-def _run_gh(args: list[str], stdin: str | None = None) -> str:
+def _run_gh(args: list[str]) -> str:
     """Shell out to `gh <args>` and return stdout.
 
     Raises RuntimeError(f"gh failed: {first_stderr_line}") on non-zero exit.
@@ -31,7 +31,8 @@ def _run_gh(args: list[str], stdin: str | None = None) -> str:
         check=False,
     )
     if result.returncode != 0:
-        first = (result.stderr or "").splitlines()[0] if result.stderr else "no stderr"
+        stderr_lines = (result.stderr or "").splitlines()
+        first = stderr_lines[0] if stderr_lines else "no stderr"
         raise RuntimeError(f"gh failed: {first}")
     return result.stdout
 

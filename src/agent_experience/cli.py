@@ -25,6 +25,8 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
+_GH_RERUN_HINT = "agex: rerun once network is reachable (gh failed)"
+
 
 def _version_callback(value: bool) -> None:
     if value:
@@ -184,7 +186,7 @@ def pr_reply(
         raise typer.Exit(code=2)
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
-        typer.echo("agex: rerun once network is reachable (gh failed)", err=True)
+        typer.echo(_GH_RERUN_HINT, err=True)
         raise typer.Exit(code=1)
     if stdout:
         typer.echo(stdout, nl=False)
@@ -211,7 +213,7 @@ def pr_read(
         raise typer.Exit(code=2)
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
-        typer.echo("agex: rerun once network is reachable (gh failed)", err=True)
+        typer.echo(_GH_RERUN_HINT, err=True)
         raise typer.Exit(code=1)
     if stdout:
         typer.echo(stdout, nl=False)
@@ -232,7 +234,7 @@ def pr_delta(
         raise typer.Exit(code=2)
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
-        typer.echo("agex: rerun once network is reachable (gh failed)", err=True)
+        typer.echo(_GH_RERUN_HINT, err=True)
         raise typer.Exit(code=1)
     if stdout:
         typer.echo(stdout, nl=False)
