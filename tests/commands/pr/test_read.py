@@ -24,6 +24,7 @@ def _setup_clean(monkeypatch, *, comments=None, checks=None):
     monkeypatch.setattr(github, "pr_comments", lambda pr: comments or [])
     monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: None)
     monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: [])
+    monkeypatch.setattr(github, "pr_review_threads", lambda pr: [])
     # Avoid network round-trip in _project_key derivation:
     monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
 
@@ -111,6 +112,7 @@ def test_pr_read_wait_returns_when_ready(monkeypatch, tmp_path):
     monkeypatch.setattr(github, "pr_comments", comments_call)
     monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: None)
     monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: [])
+    monkeypatch.setattr(github, "pr_review_threads", lambda pr: [])
     monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
 
     # Speed up the loop's sleep.
@@ -143,6 +145,7 @@ def test_pr_read_wait_timeout_renders_still_waiting(monkeypatch, tmp_path):
     monkeypatch.setattr(github, "pr_comments", lambda pr: [])  # never ready
     monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: None)
     monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: [])
+    monkeypatch.setattr(github, "pr_review_threads", lambda pr: [])
     monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
     from agent_experience.commands.pr.scripts import read as read_script
 
@@ -183,6 +186,7 @@ def test_sonar_project_key_env_override(monkeypatch, tmp_path):
     monkeypatch.setattr(github, "pr_comments", lambda pr: [])
     monkeypatch.setattr(github, "sonar_quality_gate", _gate)
     monkeypatch.setattr(github, "sonar_new_issues", _issues)
+    monkeypatch.setattr(github, "pr_review_threads", lambda pr: [])
     # _repo_slug must NOT win when the env override is present.
     monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
     monkeypatch.setenv("SONAR_PROJECT_KEY", "custom_override")

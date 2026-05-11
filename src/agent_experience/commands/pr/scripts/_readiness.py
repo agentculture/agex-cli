@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from agent_experience.core import config as cfg_mod
+from agent_experience.core import github
 
 DEFAULT_REVIEWERS = ["qodo"]
 POLL_INTERVAL_SEC = 60
@@ -40,9 +41,16 @@ def is_ready(
     return (not waiting, waiting)
 
 
-def threads_unresolved(comments: list[dict[str, Any]]) -> int:
-    """Inline comments with no in_reply_to that haven't been answered.
-    v0.1 heuristic: count distinct top-level inline comments."""
-    inline = [c for c in comments if c.get("type") == "inline"]
-    top_level = [c for c in inline if c.get("in_reply_to") is None]
-    return max(0, len(top_level))
+def threads_unresolved(pr: int) -> int:
+    """Count of review threads on ``pr`` whose ``isResolved`` flag is false.
+
+    Queries GitHub's GraphQL reviewThreads endpoint so threads resolved
+    via ``resolveReviewThread`` (what ``pr reply`` does) are excluded
+    from the count.  Returns 0 on any query failure so the caller stays
+    safe on PRs without review threads.
+    """
+    try:
+        threads = github.pr_review_threads(pr)
+    except RuntimeError:
+        return 0
+    return sum(1 for t in threads if not t.get("isResolved"))

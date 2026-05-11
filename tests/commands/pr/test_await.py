@@ -14,6 +14,7 @@ def _setup(
     checks=None,
     sonar_gate=None,
     sonar_issues=None,
+    review_threads=None,
 ):
     monkeypatch.setattr(
         github,
@@ -31,6 +32,7 @@ def _setup(
     monkeypatch.setattr(github, "pr_comments", lambda pr: comments or [])
     monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: sonar_gate)
     monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: sonar_issues or [])
+    monkeypatch.setattr(github, "pr_review_threads", lambda pr: review_threads or [])
     monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
     # Speed up the polling loop.
     from agent_experience.commands.pr.scripts import await_ as await_script
@@ -90,7 +92,30 @@ def test_await_exit_1_on_gate_error(monkeypatch, tmp_path):
 
 def test_await_exit_1_on_unresolved_threads(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
-    # Two top-level inline comments + a qodo review for readiness.
+    _setup(
+        monkeypatch,
+        comments=[_ready_comment()],
+        sonar_gate={"projectStatus": {"status": "OK"}},
+        review_threads=[
+            {"id": "T1", "isResolved": False},
+            {"id": "T2", "isResolved": False},
+            {"id": "T3", "isResolved": True},
+        ],
+    )
+    result = runner.invoke(
+        app, ["pr", "await", "42", "--max-wait", "1", "--agent", "claude-code"]
+    )
+    assert result.exit_code == 1
+    assert "replies.jsonl" in result.stdout
+
+
+def test_await_resolved_threads_do_not_block(monkeypatch, tmp_path):
+    """All review threads resolved → exit 0 even when raw inline comments remain.
+
+    Regression for v0.1 heuristic that counted top-level inline comments
+    instead of GraphQL ``isResolved`` state.
+    """
+    monkeypatch.chdir(tmp_path)
     _setup(
         monkeypatch,
         comments=[
@@ -102,23 +127,16 @@ def test_await_exit_1_on_unresolved_threads(monkeypatch, tmp_path):
                 "author": "reviewer1",
                 "path": "src/foo.py",
                 "line": 12,
-            },
-            {
-                "type": "inline",
-                "id": 11,
-                "body": "extract helper",
-                "author": "reviewer2",
-                "path": "src/bar.py",
-                "line": 5,
+                "in_reply_to": None,
             },
         ],
         sonar_gate={"projectStatus": {"status": "OK"}},
+        review_threads=[{"id": "T1", "isResolved": True}],
     )
     result = runner.invoke(
         app, ["pr", "await", "42", "--max-wait", "1", "--agent", "claude-code"]
     )
-    assert result.exit_code == 1
-    assert "replies.jsonl" in result.stdout
+    assert result.exit_code == 0, result.stdout
 
 
 def test_await_exit_1_on_ci_failure(monkeypatch, tmp_path):

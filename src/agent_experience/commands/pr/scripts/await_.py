@@ -112,7 +112,7 @@ def run(
     sonar_gate = github.sonar_quality_gate(project_key, pr_number)
     sonar_issues = github.sonar_new_issues(project_key, pr_number)
 
-    threads_unresolved = _readiness.threads_unresolved(comments)
+    threads_unresolved = _readiness.threads_unresolved(pr_number)
     ci_red = any(c.get("conclusion") == "failure" for c in checks)
     gate_error = _gate_is_error(sonar_gate)
 
