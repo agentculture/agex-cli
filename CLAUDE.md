@@ -19,7 +19,7 @@ Read the spec before any non-trivial change — the design invariants below are 
 1. **Zero LLM calls inside agex.** All output is deterministic markdown from Jinja templates + Python.
 2. **Markdown is the only output format.** No `--json` flag.
 3. **`--agent <backend>` is required** on backend-sensitive commands. The CLI never auto-detects.
-4. **Side effects only in** `gamify`, `gamify --uninstall`, `hook write`, and first-run `.agex/` init. Everything else is read-only.
+4. **Side effects only in** `gamify`, `gamify --uninstall`, `hook write`, `pr open`, `pr reply`, `pr read` (journal writes), and first-run `.agex/` init. Everything else is read-only. The `agex pr` namespace allows scoped network I/O (via `gh`) and bounded `--wait` sleep — a deliberate carve-out from the no-network/no-sleep invariants.
 5. **"Unsupported" is success** — exit 0 with a markdown notice that links to the issue tracker, not a non-zero exit.
 6. **Skills are authored by the agent, not shipped by agex.** `agex learn <topic>` teaches; `agex explain <topic>` describes; agex never writes a user skill file on the agent's behalf in v0.1.
 
@@ -40,6 +40,17 @@ cli.py ──► commands/<name>/scripts/<name>.py ──► core/render.py
 - Each `commands/<name>/` is a **skill-folder**: `SKILL.md` + `scripts/` + `assets/` + `references/`. The `SKILL.md` doubles as the content emitted by `agex explain <command>`.
 - `core/` is shared plumbing — backend enum, `.agex/` paths, Jinja renderer (`StrictUndefined`), TOML config, SKILL.md frontmatter parser, capability matrix loader, hook JSON I/O. Command- and content-agnostic.
 - A backend lives in three places: `core/backend.Backend` (enum entry), `backends/<name>/probe.py` (optional Python probe), and one YAML per relevant command under `commands/*/assets/backends/<name>.yaml`. Adding a backend touches only those locations.
+
+## `agex pr` namespace (v0.17.0+)
+
+`lint`, `open`, `read`, `reply`, `delta`. Each command ends with a deterministic "Next step:" footer. The `pr` namespace allows scoped network I/O (via `gh`) and bounded `--wait` sleep — a deliberate carve-out from the no-network/no-sleep invariants. Key modules:
+
+- `core/github.py` — thin `gh` shellout wrapper; future zero-trust httpx swap touches only this file.
+- `core/journal.py` — nested-stream JSONL append/load for `.agex/data/<dir>/<stream>.jsonl`.
+- `core/backend.resolve_backend()` — `--agent` resolution with `culture.yaml` fallback.
+- `commands/pr/assets/rules/next_step_rules.py` — "Next step:" footer decision logic, per-backend phrasing under `commands/pr/assets/backends/<backend>.yaml`.
+
+Spec: `docs/superpowers/specs/2026-05-10-agex-pr-design.md`. Plan: `docs/superpowers/plans/2026-05-10-agex-pr.md`.
 
 ## Conventions worth following
 
@@ -90,6 +101,6 @@ uv run pytest --cov=src/agent_experience --cov-report=xml --cov-report=term
 - Push, open a PR, let CI + SonarCloud + Qodo + Copilot run. Address inline comments + resolve threads before merge.
 - Merging to `main` publishes to PyPI automatically (via `autotag` → `publish-pypi` → `github-release` in `publish.yml`). No manual tagging.
 - When posting on GitHub on the user's behalf (PR descriptions, issue replies, review-thread replies), sign so it's clear the message came from an AI. Three conventions, in priority order:
-  - **Inside `cicd` workflow scripts** (`pr-reply.sh`, `pr-batch.sh`) — the script auto-appends `- agex-cli (Claude)` from the repo's `culture.yaml`. Don't sign manually.
+  - **`agex pr open` / `agex pr reply`** — auto-append `- agex-cli (Claude)` (the nick is resolved from `culture.yaml` via `core.github.resolve_nick`, falling back to the repo basename). Don't sign manually.
   - **Inside `communicate` workflow scripts** (`post-issue.sh`, `post-comment.sh`) — `agtag` resolves the same nick from `culture.yaml`. Don't sign manually.
   - **Manual posts the scripts didn't author** (a hand-typed `gh pr create --body …`, a one-off review reply) — sign explicitly as `- agex-cli (Claude)`.

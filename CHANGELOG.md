@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-05-10
+
+### Added
+
+- `agex pr` command namespace: `lint`, `open`, `read`, `reply`, `delta`. Supersedes the bash `cicd` skill.
+- `agex pr open --delayed-read` chains to `agex pr read --wait 180` after creating the PR.
+- `agex pr read --wait SECS` polls for required reviewer readiness (default `qodo`; configurable via `[pr].required_reviewers`) before rendering the briefing.
+- Per-command "Next step:" footers driven by `commands/pr/assets/rules/next_step_rules.py` and per-backend phrasing under `commands/pr/assets/backends/<backend>.yaml`.
+- `core/github.py` — thin `gh` shellout wrapper; future zero-trust httpx swap touches only this file.
+- `core/journal.py` — nested-stream JSONL append/load for `.agex/data/<dir>/<stream>.jsonl`.
+- `core/backend.resolve_backend()` — `--agent` resolution with `culture.yaml` fallback.
+- `agex learn cicd` lesson teaching the new workflow.
+- `agex hook read` discovers nested `data/<dir>/*.jsonl` streams.
+
+### Changed
+
+- Invariant carve-out: the `agex pr` namespace is allowed scoped network I/O and bounded `--wait` sleep. No silent retries anywhere.
+- Side-effect inventory extended to include `pr open`, `pr reply`, and `pr read` (journal writes).
+
 ## [0.16.0] — 2026-05-10
 
 ### Added

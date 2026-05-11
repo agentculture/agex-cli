@@ -1,0 +1,32 @@
+# `agex pr delta` — sibling project alignment
+
+{% if not siblings -%}
+_No `sibling_projects` configured in `.claude/skills.local.yaml`._
+{%- else -%}
+{% for s in siblings %}
+## {{ s.name }} (`{{ s.path }}`)
+
+{% if s.claude_md_head -%}
+### CLAUDE.md (first {{ claude_md_lines }} lines)
+
+```
+{{ s.claude_md_head }}
+```
+{%- else -%}
+_No `CLAUDE.md` found._
+{%- endif %}
+
+{% if s.culture_yaml -%}
+### culture.yaml
+
+```yaml
+{{ s.culture_yaml }}
+```
+{%- else -%}
+_No `culture.yaml` found._
+{%- endif %}
+
+{% endfor %}
+{%- endif %}
+
+{{ footer }}

@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 from typing import Any, Optional
 
 import typer
@@ -11,6 +12,11 @@ from agent_experience.commands.hook.scripts import read as hook_read_script
 from agent_experience.commands.hook.scripts import write as hook_write_script
 from agent_experience.commands.learn.scripts import learn as learn_script
 from agent_experience.commands.overview.scripts import overview as overview_script
+from agent_experience.commands.pr.scripts import delta as pr_delta_script
+from agent_experience.commands.pr.scripts import lint as pr_lint_script
+from agent_experience.commands.pr.scripts import open_ as pr_open_script
+from agent_experience.commands.pr.scripts import read as pr_read_script
+from agent_experience.commands.pr.scripts import reply as pr_reply_script
 from agent_experience.core.backend import parse_backend
 
 app = typer.Typer(
@@ -18,6 +24,8 @@ app = typer.Typer(
     help="Agent-operated developer-experience CLI.",
     no_args_is_help=True,
 )
+
+_GH_RERUN_HINT = "agex: rerun once network is reachable (gh failed)"
 
 
 def _version_callback(value: bool) -> None:
@@ -102,6 +110,140 @@ def hook_read(agent: str = _agent_option()) -> None:
         raise typer.Exit(code=exit_code)
 
 
+pr_app = typer.Typer(name="pr", help="GitHub PR lifecycle commands.", no_args_is_help=True)
+app.add_typer(pr_app, name="pr")
+
+
+@pr_app.command("lint")
+def pr_lint(
+    agent: Optional[str] = typer.Option(
+        None, "--agent", help="Backend (claude-code|codex|copilot|acp); falls back to culture.yaml."
+    ),
+    exit_on_violation: bool = typer.Option(
+        False, "--exit-on-violation", help="Exit 1 when violations are found (CI mode)."
+    ),
+) -> None:
+    try:
+        stdout, exit_code, stderr = pr_lint_script.run(
+            agent=agent, project_dir=Path.cwd(), exit_on_violation=exit_on_violation
+        )
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@pr_app.command("open")
+def pr_open(
+    title: str = typer.Option(..., "--title"),
+    body_file: Optional[Path] = typer.Option(None, "--body-file"),
+    draft: bool = typer.Option(False, "--draft"),
+    agent: Optional[str] = typer.Option(None, "--agent"),
+    delayed_read: bool = typer.Option(
+        False,
+        "--delayed-read",
+        help="After create, immediately run `pr read --wait 180`.",
+    ),
+) -> None:
+    try:
+        stdout, exit_code, stderr = pr_open_script.run(
+            agent=agent,
+            project_dir=Path.cwd(),
+            title=title,
+            body_file=body_file,
+            draft=draft,
+            delayed_read=delayed_read,
+        )
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        typer.echo("agex: rerun 'agex pr open ...' once network is reachable", err=True)
+        raise typer.Exit(code=1)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@pr_app.command("reply")
+def pr_reply(
+    pr: int = typer.Argument(...),
+    agent: Optional[str] = typer.Option(None, "--agent"),
+) -> None:
+    try:
+        stdout, exit_code, stderr = pr_reply_script.run(agent=agent, project_dir=Path.cwd(), pr=pr)
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        typer.echo(_GH_RERUN_HINT, err=True)
+        raise typer.Exit(code=1)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True, nl=False)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@pr_app.command("read")
+def pr_read(
+    pr: Optional[int] = typer.Argument(None),
+    wait: Optional[int] = typer.Option(
+        None, "--wait", help="Poll for readiness up to SECS seconds."
+    ),
+    agent: Optional[str] = typer.Option(None, "--agent"),
+) -> None:
+    try:
+        stdout, exit_code, stderr = pr_read_script.run(
+            agent=agent, project_dir=Path.cwd(), pr=pr, wait=wait
+        )
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        typer.echo(_GH_RERUN_HINT, err=True)
+        raise typer.Exit(code=1)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@pr_app.command("delta")
+def pr_delta(
+    agent: Optional[str] = typer.Option(None, "--agent"),
+) -> None:
+    try:
+        stdout, exit_code, stderr = pr_delta_script.run(agent=agent, project_dir=Path.cwd())
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        typer.echo(_GH_RERUN_HINT, err=True)
+        raise typer.Exit(code=1)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True, nl=False)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
 @app.command("learn")
 def learn(
     topic: Optional[str] = typer.Argument(None, help="Lesson topic (omit for menu)."),
@@ -165,7 +307,7 @@ def overview(agent: str = _agent_option()) -> None:
 # Keep in sync with the @app.command / app.add_typer registrations above.
 # If a new top-level command is added, extend this set so _main_entrypoint
 # stops routing it to the unknown-command fallback page.
-_KNOWN_COMMANDS = {"explain", "overview", "learn", "gamify", "hook", "doctor"}
+_KNOWN_COMMANDS = {"explain", "overview", "learn", "gamify", "hook", "doctor", "pr"}
 
 
 def _main_entrypoint() -> None:

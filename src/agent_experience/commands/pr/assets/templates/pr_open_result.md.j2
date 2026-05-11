@@ -1,0 +1,13 @@
+# `agex pr open`
+
+{% if was_already_open -%}
+PR already open: **#{{ pr }}** ({{ url }}). Skipping `gh pr create`.
+{%- else -%}
+PR opened: **#{{ pr }}**{% if url %} ({{ url }}){% endif %}.
+{%- endif %}
+
+- Title: `{{ title }}`
+- Signed: {{ "yes" if signed else "no" }}
+- Draft: {{ "yes" if draft else "no" }}
+
+{{ footer }}

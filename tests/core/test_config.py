@@ -23,3 +23,15 @@ def test_save_then_load_roundtrip(tmp_path, monkeypatch):
     save(cfg)
     reloaded = load()
     assert reloaded.installed["gamify"]["hook_fragment_ids"] == ["agex:post-tool-use"]
+
+
+def test_pr_section_round_trip(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    ensure_init()
+    cfg = load()
+    assert cfg.pr == {}
+    cfg.pr = {"wait_default": 240, "required_reviewers": ["qodo"]}
+    save(cfg)
+
+    loaded = load()
+    assert loaded.pr == {"wait_default": 240, "required_reviewers": ["qodo"]}

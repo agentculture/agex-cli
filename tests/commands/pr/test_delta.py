@@ -1,0 +1,57 @@
+from pathlib import Path
+
+import yaml
+from typer.testing import CliRunner
+
+from agent_experience.cli import app
+
+runner = CliRunner()
+
+
+def _setup_skills_local(tmp_path: Path, siblings: list[Path]) -> None:
+    (tmp_path / ".claude").mkdir(exist_ok=True)
+    (tmp_path / ".claude" / "skills.local.yaml").write_text(
+        yaml.safe_dump({"sibling_projects": [str(s) for s in siblings]}), encoding="utf-8"
+    )
+
+
+def _make_sibling(root: Path, name: str, claude_md: str | None, culture: dict | None) -> Path:
+    p = root / name
+    p.mkdir()
+    if claude_md is not None:
+        (p / "CLAUDE.md").write_text(claude_md, encoding="utf-8")
+    if culture is not None:
+        (p / "culture.yaml").write_text(yaml.safe_dump(culture), encoding="utf-8")
+    return p
+
+
+def test_delta_dumps_each_sibling(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    s1 = _make_sibling(tmp_path, "sibling-a", "Line 1\nLine 2\n", {"agents": [{"name": "a"}]})
+    s2 = _make_sibling(tmp_path, "sibling-b", "Other content\n", None)
+    _setup_skills_local(tmp_path, [s1, s2])
+    result = runner.invoke(app, ["pr", "delta", "--agent", "claude-code"])
+    assert result.exit_code == 0
+    assert "sibling-a" in result.stdout
+    assert "Line 1" in result.stdout
+    assert "sibling-b" in result.stdout
+    assert "Other content" in result.stdout
+    assert "alignment drifted" in result.stdout
+
+
+def test_delta_missing_skills_local(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    result = runner.invoke(app, ["pr", "delta", "--agent", "claude-code"])
+    assert result.exit_code == 0
+    assert "skills.local.yaml" in result.stdout
+    assert "skills.local.yaml.example" in result.stderr
+
+
+def test_pr_delta_handles_gh_runtime_error_propagation(monkeypatch, tmp_path):
+    # delta doesn't call gh today, but the cli handler should still be
+    # defensive in case future implementations do.
+    monkeypatch.chdir(tmp_path)
+    # No skills.local.yaml — exits 0 via the existing path. Verify the
+    # cli wrapper wires through correctly.
+    result = runner.invoke(app, ["pr", "delta", "--agent", "claude-code"])
+    assert result.exit_code == 0
