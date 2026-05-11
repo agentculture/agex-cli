@@ -12,6 +12,7 @@ from agent_experience.commands.hook.scripts import read as hook_read_script
 from agent_experience.commands.hook.scripts import write as hook_write_script
 from agent_experience.commands.learn.scripts import learn as learn_script
 from agent_experience.commands.overview.scripts import overview as overview_script
+from agent_experience.commands.pr.scripts import await_ as pr_await_script
 from agent_experience.commands.pr.scripts import delta as pr_delta_script
 from agent_experience.commands.pr.scripts import lint as pr_lint_script
 from agent_experience.commands.pr.scripts import open_ as pr_open_script
@@ -207,6 +208,38 @@ def pr_read(
     try:
         stdout, exit_code, stderr = pr_read_script.run(
             agent=agent, project_dir=Path.cwd(), pr=pr, wait=wait
+        )
+    except ValueError as exc:
+        typer.echo(f"agex: {exc}", err=True)
+        raise typer.Exit(code=2)
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        typer.echo(_GH_RERUN_HINT, err=True)
+        raise typer.Exit(code=1)
+    if stdout:
+        typer.echo(stdout, nl=False)
+    if stderr:
+        typer.echo(stderr, err=True)
+    if exit_code != 0:
+        raise typer.Exit(code=exit_code)
+
+
+@pr_app.command("await")
+def pr_await(
+    pr: Optional[int] = typer.Argument(None),
+    max_wait: int = typer.Option(
+        1800, "--max-wait", help="Poll for readiness up to SECS seconds (default 1800)."
+    ),
+    agent: Optional[str] = typer.Option(None, "--agent"),
+) -> None:
+    """Wake-me-when-triage-able combo verb.
+
+    Polls readiness → runs CI + Sonar gate → renders briefing.  Exits
+    non-zero on quality-gate ERROR or unresolved review threads.
+    """
+    try:
+        stdout, exit_code, stderr = pr_await_script.run(
+            agent=agent, project_dir=Path.cwd(), pr=pr, max_wait=max_wait
         )
     except ValueError as exc:
         typer.echo(f"agex: {exc}", err=True)

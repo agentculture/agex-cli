@@ -1,0 +1,148 @@
+from typer.testing import CliRunner
+
+from agent_experience.cli import app
+from agent_experience.commands.pr.scripts import _journal
+from agent_experience.core import github
+
+runner = CliRunner()
+
+
+def _setup(
+    monkeypatch,
+    *,
+    comments=None,
+    checks=None,
+    sonar_gate=None,
+    sonar_issues=None,
+):
+    monkeypatch.setattr(
+        github,
+        "pr_view",
+        lambda x: {
+            "number": 42,
+            "state": "OPEN",
+            "title": "t",
+            "url": "u",
+            "headRefName": "h",
+            "baseRefName": "main",
+        },
+    )
+    monkeypatch.setattr(github, "pr_checks", lambda pr: checks or [])
+    monkeypatch.setattr(github, "pr_comments", lambda pr: comments or [])
+    monkeypatch.setattr(github, "sonar_quality_gate", lambda *a, **k: sonar_gate)
+    monkeypatch.setattr(github, "sonar_new_issues", lambda *a, **k: sonar_issues or [])
+    monkeypatch.setattr(github, "_repo_slug", lambda: "owner/repo")
+    # Speed up the polling loop.
+    from agent_experience.commands.pr.scripts import await_ as await_script
+
+    monkeypatch.setattr(await_script.time, "sleep", lambda s: None)
+
+
+def _ready_comment(author="qodo[bot]", body="lgtm", **overrides):
+    base = {
+        "type": "review",
+        "id": 1,
+        "body": body,
+        "author": author,
+    }
+    base.update(overrides)
+    return base
+
+
+def test_await_exit_0_when_ready_and_clean(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    _setup(
+        monkeypatch,
+        comments=[_ready_comment()],
+        sonar_gate={"projectStatus": {"status": "OK"}},
+    )
+    result = runner.invoke(
+        app, ["pr", "await", "42", "--max-wait", "1", "--agent", "claude-code"]
+    )
+    assert result.exit_code == 0, result.stdout + result.stderr
+    assert "ready" in result.stdout.lower() or "wait for human merge" in result.stdout.lower()
+    events = _journal.load()
+    assert any(e["type"] == "pr_await" and e.get("outcome") == "clean" for e in events)
+
+
+def test_await_exit_1_on_gate_error(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    _setup(
+        monkeypatch,
+        comments=[_ready_comment()],
+        sonar_gate={"projectStatus": {"status": "ERROR"}},
+        sonar_issues=[
+            {"severity": "MAJOR", "message": "Cognitive complexity", "component": "x.py", "line": 1}
+        ],
+    )
+    result = runner.invoke(
+        app, ["pr", "await", "42", "--max-wait", "1", "--agent", "claude-code"]
+    )
+    assert result.exit_code == 1
+    assert "ERROR" in result.stdout
+    assert "SonarCloud quality gate" in result.stdout
+    events = _journal.load()
+    assert any(
+        e["type"] == "pr_await" and e.get("outcome") == "blocked" and e.get("gate_error") is True
+        for e in events
+    )
+
+
+def test_await_exit_1_on_unresolved_threads(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    # Two top-level inline comments + a qodo review for readiness.
+    _setup(
+        monkeypatch,
+        comments=[
+            _ready_comment(),
+            {
+                "type": "inline",
+                "id": 10,
+                "body": "nit: rename foo",
+                "author": "reviewer1",
+                "path": "src/foo.py",
+                "line": 12,
+            },
+            {
+                "type": "inline",
+                "id": 11,
+                "body": "extract helper",
+                "author": "reviewer2",
+                "path": "src/bar.py",
+                "line": 5,
+            },
+        ],
+        sonar_gate={"projectStatus": {"status": "OK"}},
+    )
+    result = runner.invoke(
+        app, ["pr", "await", "42", "--max-wait", "1", "--agent", "claude-code"]
+    )
+    assert result.exit_code == 1
+    assert "replies.jsonl" in result.stdout
+
+
+def test_await_timeout_exits_0_with_still_waiting(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    _setup(monkeypatch, comments=[])  # never ready
+    result = runner.invoke(
+        app, ["pr", "await", "42", "--max-wait", "1", "--agent", "claude-code"]
+    )
+    assert result.exit_code == 0
+    assert "Still waiting" in result.stdout
+    assert "Rerun `agex pr await 42`" in result.stdout
+    events = _journal.load()
+    assert any(e["type"] == "pr_await" and e.get("outcome") == "timeout" for e in events)
+
+
+def test_await_handles_gh_runtime_error(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+
+    def _raise(x):
+        raise RuntimeError("gh failed: not authenticated")
+
+    monkeypatch.setattr(github, "pr_view", _raise)
+    result = runner.invoke(
+        app, ["pr", "await", "42", "--max-wait", "0", "--agent", "claude-code"]
+    )
+    assert result.exit_code == 1
+    assert "not authenticated" in result.stderr

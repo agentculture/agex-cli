@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-05-12
+
+### Added
+
+- `agex pr await [<PR>] [--max-wait SECS]` — combo verb that polls
+  reviewer readiness, runs CI + SonarCloud quality gate, and dumps the
+  unified briefing. **Exits 1 on quality-gate `ERROR` or unresolved
+  review threads**, 0 on clean state or timeout. Use this when a script
+  should fail if the PR isn't triage-able. Closes
+  [#41](https://github.com/agentculture/agex-cli/issues/41).
+- `SONAR_PROJECT_KEY` env var (and `[pr].sonar_project_key` config key)
+  override the default `<owner>_<repo>` SonarCloud project-key
+  derivation, for repos with non-standard project naming.
+- `agex learn cicd` lesson now documents the 5-minute Anthropic prompt
+  cache TTL and recommends running long waits inside a background
+  subagent so the parent session's cache stays warm.
+
+### Changed
+
+- Polling helpers (`is_ready`, `threads_unresolved`, `required_reviewers`,
+  `POLL_INTERVAL_SEC`) moved from `commands/pr/scripts/read.py` to a
+  shared `commands/pr/scripts/_readiness.py` so `pr read --wait` and
+  `pr await` share one implementation. No behavior change for
+  `pr read`.
+
 ## [0.17.0] - 2026-05-10
 
 ### Added

@@ -6,7 +6,7 @@ type: lesson
 
 # Lesson — CI/CD with `agex pr` for {{ backend }}
 
-The full PR loop boils down to five commands. Each one ends with a
+The full PR loop boils down to six commands. Each one ends with a
 **Next step:** footer that names the right next command — chain it.
 
 ## Standard happy path
@@ -29,6 +29,18 @@ agex pr read <PR> --agent {{ backend }} --wait 180
 # repeat until reviewers quiet + CI green
 # wait for human merge — never merge yourself
 ```
+
+## `read --wait` vs. `await`
+
+Both poll the same readiness loop. They differ on what they do with
+the result:
+
+- `agex pr read <PR> --wait 180` — always exits 0. Renders the briefing
+  and lets the agent decide. Use when you want the unified view.
+- `agex pr await <PR>` — exits **1** on SonarCloud gate `ERROR` or
+  unresolved review threads, **0** otherwise (clean state or timeout).
+  Use when you want to gate the next command on PR health (e.g., in a
+  shell loop that should fail if Sonar errors).
 
 ## When CLAUDE.md / culture.yaml / .claude/skills change
 
@@ -65,8 +77,23 @@ Disk: `pr open`, `pr read`, and `pr reply` append events to
 - `gh` not authenticated → `agex: run 'gh auth login' then rerun`
 - `pr reply` partial failure → stderr names the line slice to resubmit; the
   command stops at the first failure to keep recovery surgical.
-- `pr read --wait` timeout → exit 0 with a "Still waiting on: <reviewers>"
-  banner; rerun the same command to keep waiting.
+- `pr read --wait` / `pr await` timeout → exit 0 with a "Still waiting on:
+  <reviewers>" banner; rerun the same command to keep waiting.
+
+## Long waits (5-minute cache TTL)
+
+Anthropic's prompt cache has a 5-minute TTL. If you expect to wait
+longer than that — for example, polling a slow CI gate with
+`agex pr read <PR> --wait 600` or `agex pr await <PR> --max-wait 1800`
+— run the wait inside a subagent and triage the result when it fires.
+The parent session keeps its cache warm; only the subagent pays the
+per-iteration cost.
+
+Pattern (Claude Code): spawn an `Agent(..., run_in_background=true)`
+that runs the command and echoes the final headline + exit code.
+Continue with unrelated work; act on the notification when it
+arrives. This is exactly how steward's `cicd` workflow handles its
+`workflow.sh await <PR>` chains.
 
 ## Reply etiquette
 

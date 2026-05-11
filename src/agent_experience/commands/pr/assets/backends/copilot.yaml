@@ -12,3 +12,8 @@ hints:
   reply_with_failures: "Resubmit the failed lines (see table above) to `agex pr reply {{ pr }}`."
   reply_clean: "Push fixes (if any), then `agex pr read {{ pr }} --wait 180`."
   delta_done: "Triage each sibling — open follow-up PRs where alignment drifted; mention them in your reply."
+  await_clean: "PR #{{ pr }} is ready — wait for human merge."
+  await_gate_error: "SonarCloud quality gate is ERROR — fix the new issues above, push, then `agex pr await {{ pr }}` again."
+  await_unresolved_threads: "Triage and prepare `replies.jsonl`, then `agex pr reply {{ pr }} < replies.jsonl`."
+  await_ci_red: "Fix CI before requesting re-review (see failing checks above)."
+  await_wait_timeout: "Still waiting on: {{ reviewers }}. Rerun `agex pr await {{ pr }}` to keep waiting."
