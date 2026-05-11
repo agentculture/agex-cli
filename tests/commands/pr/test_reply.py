@@ -114,11 +114,11 @@ def test_pr_reply_non_dict_jsonl_line(monkeypatch, tmp_path):
 def test_pr_reply_handles_gh_runtime_error(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(github, "resolve_nick", lambda d: "agex-cli")
-    monkeypatch.setattr(
-        github,
-        "pr_post_comment",
-        lambda **k: (_ for _ in ()).throw(RuntimeError("gh failed: rate limited")),
-    )
+
+    def _raise_rate_limited(**k):
+        raise RuntimeError("gh failed: rate limited")
+
+    monkeypatch.setattr(github, "pr_post_comment", _raise_rate_limited)
     jsonl = json.dumps({"body": "hi"})
     result = runner.invoke(app, ["pr", "reply", "42", "--agent", "claude-code"], input=jsonl)
     # The script catches RuntimeError internally and produces a _Failure +

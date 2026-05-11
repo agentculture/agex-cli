@@ -157,11 +157,11 @@ def test_pr_read_wait_timeout_renders_still_waiting(monkeypatch, tmp_path):
 
 def test_pr_read_handles_gh_runtime_error(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(
-        github,
-        "pr_view",
-        lambda x: (_ for _ in ()).throw(RuntimeError("gh failed: not authenticated")),
-    )
+
+    def _raise_not_authenticated(x):
+        raise RuntimeError("gh failed: not authenticated")
+
+    monkeypatch.setattr(github, "pr_view", _raise_not_authenticated)
     result = runner.invoke(app, ["pr", "read", "42", "--agent", "claude-code"])
     assert result.exit_code == 1
     assert "not authenticated" in result.stderr
